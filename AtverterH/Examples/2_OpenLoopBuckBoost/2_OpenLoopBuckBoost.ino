@@ -6,8 +6,7 @@
   of each side's H-bridge, and the internal VCC bus voltage. Reports all values on the Arduino
   serial monitor at 9600 baud rate.
 
-  modified 30 June 2023
-  by Daniel Gerber
+  created 6/30/23 by Daniel Gerber
 */
 
 #include <AtverterH.h>

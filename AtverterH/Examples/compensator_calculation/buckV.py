@@ -16,9 +16,11 @@ import sympy.physics.control.control_plots as cp
 
 CONVERTER = 'buck'
 USEDELAY = True
+STEPGAIN = 4 # multiplier for default step response to 1*u(t)
+
 tdelay = 1e-3 # digital loop update interrupt interval
 VO = 10.0 # desired output voltage (equal to Vref)
-IO = 2.0 # large signal output current operating point
+IO = 1.0 # large signal output current operating point
 VI = 20.0 # large signal input voltage operating point
 C = 100e-6 # output capacitor
 L = 47e-6 # main inductor
@@ -82,7 +84,7 @@ if USEDELAY:
     AVGWINDOW = 1
     Gdelay = 0
     for n in range(1,AVGWINDOW+1):
-        num, den = ct.pade(n*tdelay, n=5)
+        num, den = ct.pade(n*tdelay, n=3)
         Gdelay = Gdelay + ct.TransferFunction(num, den)
     Gdelay = Gdelay/AVGWINDOW
     Gzoh = (1 - Gdelay)/(s*tdelay)
@@ -104,7 +106,9 @@ if not USEDELAY: # E&M compensator design for second order system
     Gcomp = Gc0*(1+s/(2*math.pi*fz))/(1+s/(2*math.pi*fp)) # lead comp for phase margin
     Gcomp = Gcomp*(1 + (2*math.pi*fl)/s) # add a lag comp factor for high DC gain
 else: # custom compensator with low-frequency dominant pole to overcome delay effects
-    Gcomp = 1*(1 + (2*math.pi*50)/s)/((1+s/(2*math.pi*200))**2) # arbitrary compensator
+    # Gcomp = 1/(s*tdelay) # phase margin 81°
+    Gcomp = 1/(s*tdelay)*(1+s/200)/(1+s/1000)*.5 # phase margin 119°
+    # Gcomp = 1/(s*tdelay)/(1+s/300)*2 # phase margin 27°
 GloopC = ct.minreal(GloopUC*Gcomp)
 
 # plotting
@@ -114,26 +118,29 @@ plot_bode(Gvd, 1, 1 + COLS, title='Gvd(s)', omega=freqs)
 plot_bode(GloopUC, 2, 2 + COLS, title='GloopUC(s)', omega=freqs)
 plot_bode(Gcomp, 3, 3 + COLS, title='Gcomp(s)', omega=freqs)
 plot_bode(GloopC, 4, 4 + COLS, title='GloopC(s)', omega=freqs)
+gm, pm, wcg, wcp = ct.margin(GloopC)
+print("phase margin " + str(pm))
 fig.tight_layout()
 plt.show()
 
 Gv2adc = Gladder*Gadc # prescale Vref by Gladder*Gadc to express voltage as 10-bit value
 GforUC = Gpwm*Gvd # forward gain path for uncompensated system
-TotalUC = ct.minreal(GforUC/(1+GloopUC)) # total feedback gain of uncompensated system
+TotalUC = ct.minreal(Gv2adc*GforUC/(1+GloopUC)) # total feedback gain of uncompensated system
 GforC = Gcomp*Gpwm*Gvd # forward gain path for compensated system
 TotalC = ct.minreal(Gv2adc*GforC/(1+GloopC))
 
 t = np.linspace(0, 10e-2, 10000)
-t, yout = ct.step_response(TotalC, T=t)
+t, yout = ct.step_response(STEPGAIN*TotalC, T=t)
 plt.plot(t, yout)
 plt.grid()
 plt.show()
 
 # report discrete compensator
 print(Gcomp)
-GcompD = Gcomp.sample(tdelay, method='bilinear')
+# GcompD = Gcomp.sample(tdelay, method='bilinear')
+GcompD = Gcomp.sample(tdelay, method='backward_diff')
 print(GcompD)
-multiplier = 256
+multiplier = 8
 print("coefficient multipler: " + str(multiplier))
 num10 = [np.round(n).astype(int) for n in np.multiply(GcompD.num, multiplier)]
 den10 = [np.round(n).astype(int) for n in np.multiply(GcompD.den, multiplier)]
