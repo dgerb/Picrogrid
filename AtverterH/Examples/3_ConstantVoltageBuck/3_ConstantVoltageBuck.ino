@@ -15,8 +15,8 @@ AtverterH atverterH;
 long slowInterruptCounter = 0;
 bool stepUp = false;
 
-int y [] = {0, 0, 0, 0, 0, 0};
-int x [] = {0, 0, 0, 0, 0, 0};
+int x [] = {0, 0, 0}; // must be equal or longer than compNum
+int y [] = {0, 0, 0}; // must be equal or longer than compDen
 
 // // Phase margin: 81°
 int compNum [] = {8, 0};

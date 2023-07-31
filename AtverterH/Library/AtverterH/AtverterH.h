@@ -15,6 +15,7 @@
 // In Arduino IDE, go to Sketch -> Include Library -> Manage Libraries
 #include <FastPwmPin.h> // Add zip library from: https://github.com/maxint-rd/FastPwmPin
 #include <TimerOne.h> // In Library Manager, search for "TimerOne"
+#include <avdweb_AnalogReadFast.h> // In Library Manager, search for "AnalogReadFast"
 
 // pins for turning on the LEDs
 const int LEDG_PIN = 2; // PD2
@@ -59,7 +60,7 @@ enum SensorIndex
 
 // moving average sample window length for sensors
 // best to use lengths of 1, 2, 4, or 8 to avoid overflow and optimize division
-const int AVERAGE_WINDOW = 8;
+const int AVERAGE_WINDOW_MAX = 8;
 
 // NCP15WF104F03RC thermistor look up table (ADC value, temperature °C)
 const int TTABLE[14][2] = {
@@ -89,6 +90,7 @@ class AtverterH
     void initializeInterruptTimer(long periodus, // starts periodic control timer
       void (*interruptFunction)(void)); // inputs: period (ms), controller function reference
     void enableGateDrivers(); // resets protection latch, enabling the gate drivers
+    void setSensorAverageWindow(int length); // set averaging window size (0 to AVERAGE_WINDOW_MAX)
   // duty cycle
     void setDutyCycle(int dutyCycle); // sets duty cycle (0 to 100)
     void setDutyCycleFloat(float dutyCycleFloat); // sets duty cycle (0.0 to 1.0)
@@ -137,8 +139,9 @@ class AtverterH
     int _dutyCycle = 50; // the most recently set duty cycle (0 to 100)
     long _bootstrapCounter; // counter to refresh the gate driver bootstrap caps
     long _bootstrapCounterMax; // reset value for bootstrap counter
+    int _averageWindow = 4; // average window length (< AVERAGE_WINDOW_MAX)
     int _sensorAverages[NUM_SENSORS]; // array raw sensor moving averages
-    int _sensorPast[AVERAGE_WINDOW][NUM_SENSORS]; // array raw sensor moving averages
+    int _sensorPast[AVERAGE_WINDOW_MAX][NUM_SENSORS]; // array raw sensor moving averages
     int _vcc; // stored value of vcc measured at start up
     int _currentLimitAmplitudeRaw = 9999; // the upper raw (0 to 1023) current limit before gate shutoff
     int _thermalLimitC = 9999; // the upper °C thermal limit before gate shutoff

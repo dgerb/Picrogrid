@@ -31,7 +31,7 @@ void AtverterH::setupPinMode() {
 
 // initialize sensor average array to sensor read
 void AtverterH::initializeSensors() {
-  for (int n = 0; n < AVERAGE_WINDOW; n++) {
+  for (int n = 0; n < _averageWindow; n++) {
     updateVISensors();
     updateTSensors();
   }
@@ -54,6 +54,12 @@ void AtverterH::enableGateDrivers() {
   digitalWrite(PRORESET_PIN, LOW);
 }
 
+// set averaging window size (0 to AVERAGE_WINDOW_MAX)
+void AtverterH::setSensorAverageWindow(int length) {
+  _averageWindow = length;
+  initializeSensors();
+}
+
 // legacy; replaced by enableGateDrivers()
 void AtverterH::startPWM() {
   enableGateDrivers();
@@ -68,7 +74,7 @@ void AtverterH::initializePWMTimer() {
 // sets the duty cycle, integer argument (0-100)
 void AtverterH::setDutyCycle(int dutyCycle) {
   _dutyCycle = dutyCycle;
-  constrain(_dutyCycle, 0, 100);
+  _dutyCycle = constrain(_dutyCycle, 1, 99);
   // FastPwmPin::enablePwmPin(pin number, frequency, duty cycle 0-100);
   FastPwmPin::enablePwmPin(PWM_PIN, 100000L, _dutyCycle);
 }
@@ -138,27 +144,27 @@ void AtverterH::updateVCC() {
 }
 
 void AtverterH::updateTSensors() {
-  updateSensorRaw(T1_INDEX, analogRead(T1_PIN));
-  updateSensorRaw(T2_INDEX, analogRead(T2_PIN));
+  updateSensorRaw(T1_INDEX, analogReadFast(T1_PIN));
+  updateSensorRaw(T2_INDEX, analogReadFast(T2_PIN));
 }
 
 void AtverterH::updateVISensors() {
   // analog read measured at 116 microseconds, updateSensorRaw adds negligable time
   // total updateVISensors time is measured at 456 microseconds
-  updateSensorRaw(V1_INDEX, analogRead(V1_PIN));
-  updateSensorRaw(V2_INDEX, analogRead(V2_PIN));
-  updateSensorRaw(I1_INDEX, analogRead(I1_PIN));
-  updateSensorRaw(I2_INDEX, analogRead(I2_PIN));
+  updateSensorRaw(V1_INDEX, analogReadFast(V1_PIN));
+  updateSensorRaw(V2_INDEX, analogReadFast(V2_PIN));
+  updateSensorRaw(I1_INDEX, analogReadFast(I1_PIN));
+  updateSensorRaw(I2_INDEX, analogReadFast(I2_PIN));
 }
 
 void AtverterH::updateSensorRaw(int index, int sample) {
   unsigned int accumulator = sample;
-  for (int n = 1; n < AVERAGE_WINDOW; n++) {
+  for (int n = 1; n < _averageWindow; n++) {
     _sensorPast[n][index] = _sensorPast[n-1][index];
     accumulator = accumulator + _sensorPast[n][index];
   }
   _sensorPast[0][index] = sample;
-  _sensorAverages[index] = (int)(accumulator/AVERAGE_WINDOW);
+  _sensorAverages[index] = (int)(accumulator/_averageWindow);
 }
 
 // Raw Sensor Accessor Functions --------------------------------------
