@@ -15,8 +15,8 @@ AtverterH atverterH;
 long slowInterruptCounter = 0;
 bool stepUp = false;
 
-int x [] = {0, 0, 0}; // must be equal or longer than compNum
-int y [] = {0, 0, 0}; // must be equal or longer than compDen
+int compIn [] = {0, 0, 0}; // must be equal or longer than compNum
+int compOut [] = {0, 0, 0}; // must be equal or longer than compDen
 
 // // Phase margin: 81°
 int compNum [] = {8, 0};
@@ -28,8 +28,10 @@ int compDen [] = {8, -8};
 // int compNum [] = {4, 0, 0};
 // int compDen [] = {8, -14, 6};
 
-const int YSIZE = sizeof(y) / sizeof(y[0]);
-const int XSIZE = sizeof(x) / sizeof(x[0]);
+int gradDescCount = 0;
+
+const int INSIZE = sizeof(compIn) / sizeof(compIn[0]);
+const int OUTSIZE = sizeof(compOut) / sizeof(compOut[0]);
 const int NUMSIZE = sizeof(compNum) / sizeof(compNum[0]);
 const int DENSIZE = sizeof(compDen) / sizeof(compDen[0]);
 
@@ -58,37 +60,60 @@ void controlUpdate(void)
   atverterH.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverterH.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
-  // voltage control loop and compensation
+  // measure Vout and calculate error
 
   // raw 10-bit output voltage = actual voltage * 10k/(10k+120k) * 2^10 / 5V
   int vOut = atverterH.getRawV2();
   // error = reference - output voltage
   int vErr = VREF - vOut;
-  // update array of past compensator inputs (x)
-  for (int n = XSIZE - 1; n > 0; n--) {
-    x[n] = x[n-1];
-  }
-  x[0] = vErr;
-  // update array of past compensator outputs (y)
-  for (int n = YSIZE - 1; n > 0; n--) {
-    y[n] = y[n-1];
-  }
-  // accumulate compensator weighted input terms
-  long compOut = 0;
-  for (int n = 0; n < NUMSIZE; n++) {
-    compOut = compOut + x[n]*compNum[n];
-  }
-  // accumulate compensator weighted past output terms
-  for (int n = 1; n < DENSIZE; n++) {
-    compOut = compOut - y[n]*compDen[n];
-  }
-  compOut = compOut/compDen[0];
-  y[0] = compOut;
-  // duty cycle (0-100) = compensator output * 100% / 2^10
-  int duty = (compOut*100)/1024;
-  atverterH.setDutyCycle(duty);
 
-  // in this example, step from 8V to 12V or vice versa every 3 seconds
+  // update past compensator inputs and outputs
+  // must do this even if using gradient descent for smooth transition to discrete compensation
+
+  // update array of past compensator inputs
+  for (int n = INSIZE - 1; n > 0; n--) {
+    compIn[n] = compIn[n-1];
+  }
+  compIn[0] = vErr;
+  // update array of past compensator outputs
+  for (int n = OUTSIZE - 1; n > 0; n--) {
+    compOut[n] = compOut[n-1];
+  }
+
+  // 0.5A-5A output: discrete compensation mode
+  // 0A-0.5A output: slow gradient descent mode
+  bool isDiscComp = atverterH.getRawI2() < 512 - 51 || atverterH.getRawI2() > 512 + 51;
+
+  if(isDiscComp) { // discrete compensation mode
+    // accumulate compensator weighted input terms
+    long compAcc = 0;
+    for (int n = 0; n < NUMSIZE; n++) {
+      compAcc = compAcc + compIn[n]*compNum[n];
+    }
+    // accumulate compensator weighted past output terms
+    for (int n = 1; n < DENSIZE; n++) {
+      compAcc = compAcc - compOut[n]*compDen[n];
+    }
+    compAcc = compAcc/compDen[0];
+    compOut[0] = compAcc;
+    // duty cycle (0-100) = compensator output * 100% / 2^10
+    int duty = (compAcc*100)/1024;
+    atverterH.setDutyCycle(duty);
+  } else { // slow gradient descent mode, avoids light-load instability
+    gradDescCount++; // use a counter to control the rate of gradient descent
+    if (gradDescCount > 4) {
+      long duty = atverterH.getDutyCycle();
+      compOut[0] = duty*1024/100;
+      if (vErr > 0) { // ascend or descend by 1% duty cycle depending on error
+        atverterH.setDutyCycle(duty + 1);
+      } else {
+        atverterH.setDutyCycle(duty - 1);
+      }
+      gradDescCount = 0;
+    }
+  }
+
+  // in this example, report loop values and step from 8V to 12V or vice versa every 3 seconds
   slowInterruptCounter++;
   if (slowInterruptCounter > 3000) { // timer set such that each count is 1 ms
     slowInterruptCounter = 0;
@@ -97,6 +122,11 @@ void controlUpdate(void)
     atverterH.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
 
     Serial.println("");
+    if (isDiscComp) {
+      Serial.println("Discrete Compensation");
+    } else {
+      Serial.println("Gradient Descent");
+    }
     Serial.print("VREF: ");
     Serial.println(VREF);
     Serial.print("VOut: ");
@@ -104,7 +134,7 @@ void controlUpdate(void)
     Serial.print("VErr: ");
     Serial.println(vErr);
     Serial.print("Duty: ");
-    Serial.println(duty);
+    Serial.println(atverterH.getDutyCycle());
 
     if (stepUp) {
       VREF = 190; // step output up to approximately 12V
