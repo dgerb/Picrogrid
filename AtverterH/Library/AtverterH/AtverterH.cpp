@@ -30,11 +30,17 @@ void AtverterH::setupPinMode() {
 }
 
 // initialize sensor average array to sensor read
-void AtverterH::initializeSensors() {
+void AtverterH::initializeSensors(int avgWindowLength) {
+  _averageWindow = avgWindowLength;
   for (int n = 0; n < _averageWindow; n++) {
     updateVISensors();
     updateTSensors();
   }
+}
+
+// initialize sensor average array to sensor read
+void AtverterH::initializeSensors() {
+  initializeSensors(4); // default average window length 4
 }
 
 // initializes the periodic control timer
@@ -43,7 +49,7 @@ void AtverterH::initializeSensors() {
 void AtverterH::initializeInterruptTimer(long periodus, void (*interruptFunction)(void)) {
   Timer1.initialize(periodus); // arg: period in microseconds
   Timer1.attachInterrupt(interruptFunction); // arg: interrupt function to call
-  _bootstrapCounterMax = 1000000/periodus; // refresh bootstrap capacitors every 1 second
+  _bootstrapCounterMax = 10000/periodus; // refresh bootstrap capacitors every 10ms
   refreshBootstrap();
 }
 
@@ -52,12 +58,6 @@ void AtverterH::enableGateDrivers() {
   digitalWrite(PRORESET_PIN, HIGH);
   delayMicroseconds(500);
   digitalWrite(PRORESET_PIN, LOW);
-}
-
-// set averaging window size (0 to AVERAGE_WINDOW_MAX)
-void AtverterH::setSensorAverageWindow(int length) {
-  _averageWindow = length;
-  initializeSensors();
 }
 
 // legacy; replaced by enableGateDrivers()
@@ -228,12 +228,67 @@ int AtverterH::getI2() {
 
 // returns the averaged T1 value in °C
 int AtverterH::getT1() {
-  return raw2C(getRawT1());
+  return raw2degC(getRawT1());
 }
 
 // returns the averaged T2 value in °C
 int AtverterH::getT2() {
-  return raw2C(getRawT2());
+  return raw2degC(getRawT2());
+}
+
+// Conversion Utility Functions ---------------------------------------
+
+// converts a raw 10-bit analog reading (0-1023) to the actual mV (0-65000)
+unsigned int AtverterH::raw2mV(int raw) {
+  long numerator = (long)raw*getVCC()*13;
+  return (unsigned int)(numerator/1024); // analogRead*VCC/1024 * (120k+10k)/10k
+}
+
+// converts a raw 10-bit analog reading (0-1023) to ADC mV reading (0-5000)
+int AtverterH::raw2mVADC(int raw) {
+  long rawL = (long)raw;
+  return (int)(rawL*getVCC()/1024); // analogRead*VCC/1024
+}
+
+// converts a raw 10-bit analog reading (0-1023) to a mA reading (-5000 to 5000)
+//  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
+//  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
+int AtverterH::raw2mA(int raw) {
+  long rawL = (long)raw;
+  // (analogRead-512) * VCC/1024 * 1/sensitivity = (analogRead-512) * VCC/1024 * 1000/333
+  return (rawL-512)*getVCC()*3/1024;
+  // return (rawL-512)*1875/128;
+}
+
+// converts a raw 10-bit analog reading (0-1023) to a °C reading (0-100)
+int AtverterH::raw2degC(int raw) {
+  int x0 = 0;
+  int x1 = 0;
+  int y0 = 0;
+  int y1 = 0;
+  for (int n = 1; n < sizeof(TTABLE)/sizeof(TTABLE[0]); n++) {
+    if (raw < TTABLE[n][0]) {
+      x0 = TTABLE[n-1][0];
+      x1 = TTABLE[n][0];
+      y0 = TTABLE[n-1][1];
+      y1 = TTABLE[n][1];
+      break;
+    }
+  }
+  return y0 + (raw - x0)*(y1 - y0)/(x1 - x0);
+}
+
+// converts a mV value (0-65000) to raw 10-bit form (0-1023)
+int AtverterH::mV2raw(unsigned int mV) { // mV * 10k/(10k+120k) * 1024/VCC
+  long temp = (long)mV * 79 / getVCC();
+  return (int)(temp);
+}
+
+// converts a mA value (-5000 to 5000) to raw 10-bit form (0-1023)
+int AtverterH::mA2raw(int mA) {
+  // mA * sensitivity * 1024/VCC + 512 = mA * 333/1000 * 1024/VCC + 512
+  long temp = (long)mA*341/getVCC() + 512;
+  return (int)temp;
 }
 
 // Sensor Private Utility Functions ---------------------------------------
@@ -261,45 +316,6 @@ int AtverterH::readVCC() {
  
   result = 1125300L / result; // Calculate Vcc (in mV); 1125300 = 1.1*1023*1000
   return (int)result; // Vcc in millivolts
-}
-
-// converts a raw 10-bit analog reading (0-1023) to ADC mV reading (0-5000)
-int AtverterH::raw2mVADC(int raw) {
-  long rawL = (long)raw;
-  return (int)(rawL*getVCC()/1024); // analogRead*VCC/1024
-}
-
-// converts a raw 10-bit analog reading (0-1023) to the actual mV (0-65000)
-unsigned int AtverterH::raw2mV(int raw) {
-  long numerator = (long)raw*getVCC()*13;
-  return (unsigned int)(numerator/1024); // analogRead*VCC/1024 * (120k+10k)/10k
-}
-
-// converts a raw 10-bit analog reading (0-1023) to a mA reading (-5000 to 5000)
-//  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
-//  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
-int AtverterH::raw2mA(int raw) {
-  long rawL = (long)raw;
-  // (analogRead-512)/1024*VCC / sensitivity = (analogRead-512)/1024 * 5000/333*1000
-  return (rawL-512)*1875/128;
-}
-
-// converts a raw 10-bit analog reading (0-1023) to a °C reading (0-100)
-int AtverterH::raw2C(int raw) {
-  int x0 = 0;
-  int x1 = 0;
-  int y0 = 0;
-  int y1 = 0;
-  for (int n = 1; n < sizeof(TTABLE)/sizeof(TTABLE[0]); n++) {
-    if (raw < TTABLE[n][0]) {
-      x0 = TTABLE[n-1][0];
-      x1 = TTABLE[n][0];
-      y0 = TTABLE[n-1][1];
-      y1 = TTABLE[n][1];
-      break;
-    }
-  }
-  return y0 + (raw - x0)*(y1 - y0)/(x1 - x0);
 }
 
 // Diagnostics -------------------------------------------------------------

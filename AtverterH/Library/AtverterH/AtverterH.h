@@ -87,10 +87,10 @@ class AtverterH
   // Atmega initialization
     void setupPinMode(); // sets appropriate pinMode() for each const pin
     void initializeSensors(); // initialize sensor average array to sensor read
+    void initializeSensors(int avgWindowLength); // initialize sensor average array to sensor read
     void initializeInterruptTimer(long periodus, // starts periodic control timer
       void (*interruptFunction)(void)); // inputs: period (ms), controller function reference
     void enableGateDrivers(); // resets protection latch, enabling the gate drivers
-    void setSensorAverageWindow(int length); // set averaging window size (0 to AVERAGE_WINDOW_MAX)
   // duty cycle
     void setDutyCycle(int dutyCycle); // sets duty cycle (0 to 100)
     void setDutyCycleFloat(float dutyCycleFloat); // sets duty cycle (0.0 to 1.0)
@@ -132,6 +132,13 @@ class AtverterH
     void checkCurrentShutdown(); // checks if last sensed current is greater than current limit
     void setThermalShutdown(int temperature); // sets the upper temperature shutoff in °C
     void checkThermalShutdown(); // checks if last sensed current is greater than thermal limit
+  // conversion utility functions
+    unsigned int raw2mV(int raw); // converts ADC reading to mV voltage scaled by resistor divider
+    int raw2mVADC(int raw); // converts ADC reading to mV voltage at ADC
+    int raw2mA(int raw); // converts raw ADC current sense output to mA
+    int raw2degC(int raw); // converts raw ADC current sense output to °C
+    int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
+    int mA2raw(int mA); // converts a mA value to raw 10-bit form
   // legacy functions
     void startPWM(); // replaced by enableGateDrivers()
     void initializePWMTimer(); // not needed with FastPWM library
@@ -146,10 +153,6 @@ class AtverterH
     int _currentLimitAmplitudeRaw = 9999; // the upper raw (0 to 1023) current limit before gate shutoff
     int _thermalLimitC = 9999; // the upper °C thermal limit before gate shutoff
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value
-    unsigned int raw2mV(int raw); // converts ADC reading to mV voltage scaled by resistor divider
-    int raw2mVADC(int raw); // converts ADC reading to mV voltage at ADC
-    int raw2mA(int raw); // converts raw ADC current sense output to mA
-    int raw2C(int raw); // converts raw ADC current sense output to mA
 };
 
 

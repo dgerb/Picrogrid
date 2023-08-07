@@ -15,14 +15,15 @@ from sympy.physics.control.lti import TransferFunction
 import sympy.physics.control.control_plots as cp
 
 # setting flags
-CONVERTER = 'buck'
+CONVERTER = 'boost' # 'buck', 'boost', 'buckboost'
+MODE = 'CC' # 'CV', 'CC'
 USEDELAY = True
 STEPGAIN = 4 # multiplier for default step response to 1*u(t)
 
 # set these values for the system
 tdelay = 1e-3 # digital loop update interrupt interval
 VO = 10.0 # desired output voltage (i.e. reference voltage)
-IO = 2 # large signal output current operating point
+IO = .1 # large signal output current operating point
 VI = 20.0 # large signal input voltage operating point
 C = 100e-6 # output capacitor
 L = 47e-6 # main inductor
@@ -83,13 +84,22 @@ if CONVERTER == 'buck':
 elif CONVERTER == 'boost' or CONVERTER == 'buckboost':
     Gvd = ct.minreal(Gd0*(1 - s/(wz))/(1 + s/(Q*w0) + (s/w0)**2)) # duty cycle to output voltage tf
 Gvvi = Gg0/(1 + s/(Q*w0) + (s/w0)**2) # input voltage to output voltage tf (not used here)
+# I assume the small signal output current is simply the small signal output voltage divided by
+#  the output resistance, but I could be wrong about this
+Gid = ct.minreal(Gvd/R) # duty cycle to output current tf
 
 # uncompensated loop transfer function ------------------------------------------------------------
 
-# resistor ladder
+# resistor ladder (output voltage)
 ladbot = 10e3
 ladtop = 120e3
 Gladder = ladbot/(ladbot+ladtop)
+# hall effect sensor (output current)
+sensitivity = 0.333 # 333 mV/A sensitivity
+cfilt = 10e-9 # external filter cap
+rfint = 1800 # internal filter resistance
+Ghall = sensitivity*(1/(s*cfilt))/(rfint + 1/(s*cfilt))
+Ghall = sensitivity
 # adc
 adcRes = 1024
 vcc = 5
@@ -104,7 +114,13 @@ if USEDELAY:
 else:
     Gzoh = 1
 # uncompensated loop tf
-GloopUC = ct.minreal(Gladder*Gadc*Gzoh*Gpwm*Gvd)
+if MODE == 'CV':
+    GloopUC = ct.minreal(Gladder*Gadc*Gzoh*Gpwm*Gvd)
+elif MODE == 'CC':
+    GloopUC = ct.minreal(Ghall*Gadc*Gzoh*Gpwm*Gid)
+else:
+    print('unknown mode of operation. exiting')
+    exit()
 
 # compensator design ------------------------------------------------------------
 
@@ -131,7 +147,7 @@ GloopC = ct.minreal(GloopUC*Gcomp)
 
 fig, ax = plt.subplots(2, 4, figsize=(15,6))
 freqs = np.logspace(start=0, stop=7, num=1000) # create frequency array
-plot_bode(Gvd, 1, 1 + 4, title='Gvd(s)', omega=freqs)
+plot_bode(Gvd, 1, 1 + 4, title='Plant(s)', omega=freqs)
 plot_bode(GloopUC, 2, 2 + 4, title='GloopUC(s)', omega=freqs)
 plot_bode(Gcomp, 3, 3 + 4, title='Gcomp(s)', omega=freqs)
 plot_bode(GloopC, 4, 4 + 4, title='GloopC(s)', omega=freqs)
@@ -143,11 +159,20 @@ plt.show()
 
 # forward gain and total system gain ------------------------------------------------------------
 
-Gv2adc = Gladder*Gadc # prescale Vref by Gladder*Gadc to express voltage as 10-bit value
-GforUC = Gpwm*Gvd # forward gain path for uncompensated system
-TotalUC = ct.minreal(Gv2adc*GforUC/(1+GloopUC)) # total system gain of uncompensated system
-GforC = Gcomp*Gpwm*Gvd # forward gain path for compensated system
-TotalC = ct.minreal(Gv2adc*GforC/(1+GloopC)) # total system gain of compensated system
+if MODE == 'CV':
+    Gprescale = Gladder*Gadc # prescale Vref by Gladder*Gadc to express voltage as 10-bit value
+    GforUC = Gpwm*Gvd # forward gain path for uncompensated system
+    GforC = Gcomp*Gpwm*Gvd # forward gain path for compensated system
+elif MODE == 'CC':
+    Gprescale = Ghall*Gadc # prescale Iref by Ghall*Gadc to express current as 10-bit value
+    GforUC = Gpwm*Gid # forward gain path for uncompensated system
+    GforC = Gcomp*Gpwm*Gid # forward gain path for compensated system
+else:
+    print('unknown mode of operation. exiting')
+    exit()
+
+TotalUC = ct.minreal(Gprescale*GforUC/(1+GloopUC)) # total system gain of uncompensated system
+TotalC = ct.minreal(Gprescale*GforC/(1+GloopC)) # total system gain of compensated system
 
 # step response plotting ------------------------------------------------------------
 
