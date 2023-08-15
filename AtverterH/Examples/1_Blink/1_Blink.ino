@@ -1,5 +1,5 @@
 /*
-  1_Blink
+  Blink
 
   Blinks the LEDs in an alternating fashion. This is the most basic test of the 
   microcontroller's functionality and method of uploading a program.

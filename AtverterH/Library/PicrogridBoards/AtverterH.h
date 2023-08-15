@@ -5,12 +5,12 @@
 */
 
 // Open Arduino IDE, select “Sketch” > “Include Library” > “Add .ZIP Library…”, and browse to find your .zip archive.
-// https://docs.arduino.cc/learn/contributions/arduino-creating-library-guide
 
 #ifndef AtverterH_h
 #define AtverterH_h
 
-#include "Arduino.h"
+// #include "Arduino.h"
+#include "PicrogridBoard.h"
 
 // In Arduino IDE, go to Sketch -> Include Library -> Manage Libraries
 #include <FastPwmPin.h> // Add zip library from: https://github.com/maxint-rd/FastPwmPin
@@ -80,7 +80,7 @@ const int TTABLE[14][2] = {
   880, 100
 };
 
-class AtverterH
+class AtverterH : public PicrogridBoard
 {
   public:
     AtverterH(); // constructor
@@ -139,6 +139,8 @@ class AtverterH
     int raw2degC(int raw); // converts raw ADC current sense output to °C
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
+  // communications
+    void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
   // legacy functions
     void startPWM(); // replaced by enableGateDrivers()
     void initializePWMTimer(); // not needed with FastPWM library
@@ -150,10 +152,9 @@ class AtverterH
     int _sensorAverages[NUM_SENSORS]; // array raw sensor moving averages
     int _sensorPast[AVERAGE_WINDOW_MAX][NUM_SENSORS]; // array raw sensor moving averages
     int _vcc; // stored value of vcc measured at start up
-    int _currentLimitAmplitudeRaw = 9999; // the upper raw (0 to 1023) current limit before gate shutoff
-    int _thermalLimitC = 9999; // the upper °C thermal limit before gate shutoff
+    int _currentLimitAmplitudeRaw = 375; // the upper raw (0 to 1023) current limit before gate shutoff
+    int _thermalLimitC = 170; // the upper °C thermal limit before gate shutoff
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value
 };
-
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  2_OpenLoopBuckBoost
+  OpenLoopBuckBoost
 
   An open loop test of the Atverter in buck/boost mode. Sweeps duty cycle from 40%-60%.
   Monitors the voltage (V1, V2) and current (I1, I2) at each terminal, the temperature (T1, T2)

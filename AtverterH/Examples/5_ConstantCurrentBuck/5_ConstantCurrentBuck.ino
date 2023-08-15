@@ -1,27 +1,30 @@
 /*
-  3_ConstantVoltageBuck
+  ConstantCurrentBuck
 
-  A constant voltage buck converter.
-  Input: Terminal 1, 13-48V (compensator tuned for 20V input)
-  Output: Terminal 2, 8V or 12V constant voltage (compensator tuned for 1A output)
+  A constant current buck converter.
+  Input: Terminal 1, 20V
+  Output: Terminal 2, 0.5A to 2A constant current
   
-  Test Set-up:
+  Test Setup:
   Input: Voltage supply attached to terminal 1, set to CV at 20V with 3A current limit
-  Output: Electronic load attached to terminal 2, is set to CC mode between 0A to 3A
+  Output: Electronic load attached to terminal 2, is set to CR mode at 5 ohms
 
   For a discrete-time compensator design reference, see compensation.py
 
-  The feedback control loop uses a classical feedback voltage-mode discrete-time compensator when the
-  output current is between 0.5A to 5A, and a gradient-descent algorithm for when the output current
-  is 0A to 0.5A. The reason is that classical voltage-mode feedback loops go unstable at low current since 
-  the converter's high Q factor causes multiple zero crossings.
+  For constant current control, a classical feedback voltage-mode discrete-time compensator or a
+  gradient-descent algorithm are both viable, since loop gain scales with output current.
 
-  Created 7/31/23 by Daniel Gerber
+  created 8/6/23 by Daniel Gerber
 */
 
 #include <AtverterH.h>
 
 AtverterH atverterH;
+
+// set the feedback algorithm. Either is viable over the full current range
+//  isClassicalFB = true: uses discrete compensation and a classical feedback loop
+//  isClassicalFB = false: uses a slow gradient descent feedback algorithm
+bool isClassicalFB = true;
 
 long slowInterruptCounter = 0;
 bool stepUp = false;
@@ -33,18 +36,8 @@ int compOut [] = {0, 0, 0}; // must be equal or longer than compDen
 // usage: compNum = {A, B, C}, compDen = {D, E, F}, x = compIn, y = compOut
 //   D*y[n] + E*y[n-1] + F*y[n-2] = A*x[n] + B*x[n-1] + C*x[n-2]
 //   y[n] = (A*x[n] + B*x[n-1] + C*x[n-2] - E*y[n-1] - F*y[n-2])/D
-
-// // Uncomment for phase margin: 81°
 int compNum [] = {8, 0};
 int compDen [] = {8, -8};
-
-// // Uncomment for phase margin: 119°
-// int compNum [] = {12, -10, 0};
-// int compDen [] = {8, -12, 4};
-
-// // Uncomment for phase margin: 27°
-// int compNum [] = {4, 0, 0};
-// int compDen [] = {8, -14, 6};
 
 int gradDescCount = 0;
 
@@ -53,7 +46,8 @@ const int OUTSIZE = sizeof(compOut) / sizeof(compOut[0]);
 const int NUMSIZE = sizeof(compNum) / sizeof(compNum[0]);
 const int DENSIZE = sizeof(compDen) / sizeof(compDen[0]);
 
-int VREF = atverterH.mV2raw(8000);
+// Current flowing out of the terminal is measured as being negative
+int IREF = atverterH.mA2raw(-2000);
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -78,31 +72,25 @@ void controlUpdate(void)
   atverterH.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverterH.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
-  // measure Vout and calculate error
+  // measure Iout and calculate error
 
-  // raw 10-bit output voltage = actual voltage * 10k/(10k+120k) * 2^10 / 5V
-  int vOut = atverterH.getRawV2();
-  // error = reference - output voltage
-  int vErr = VREF - vOut;
+  // raw 10-bit output current = actual current * 0.333 * 2^10 / 5V - 512
+  int iOut = atverterH.getRawI2();
+  // error = -(reference - output current)
+  // note the negative sign. measured current flowing out is denoted as negative, but this causes the 
+  //  error to be negatively coorelated with the duty cycle, thus we swap the sign for error calculations.
+  int iErr = -(IREF - iOut);
 
-  // update past compensator inputs and outputs
-  // must do this even if using gradient descent for smooth transition to classical feedback
-
-  // update array of past compensator inputs
-  for (int n = INSIZE - 1; n > 0; n--) {
-    compIn[n] = compIn[n-1];
-  }
-  compIn[0] = vErr;
-  // update array of past compensator outputs
-  for (int n = OUTSIZE - 1; n > 0; n--) {
-    compOut[n] = compOut[n-1];
-  }
-
-  // 0.5A-5A output: classical feedback voltage mode discrete compensation
-  // 0A-0.5A output: slow gradient descent mode
-  bool isClassicalFB = atverterH.getRawI2() < 512 - 51 || atverterH.getRawI2() > 512 + 51;
-
-  if(isClassicalFB) { // classical feedback voltage mode discrete compensation
+  if(isClassicalFB) { // classical feedback current control with discrete compensation
+    // update array of past compensator inputs
+    for (int n = INSIZE - 1; n > 0; n--) {
+      compIn[n] = compIn[n-1];
+    }
+    compIn[0] = iErr;
+    // update array of past compensator outputs
+    for (int n = OUTSIZE - 1; n > 0; n--) {
+      compOut[n] = compOut[n-1];
+    }
     // accumulate compensator weighted input terms
     long compAcc = 0;
     for (int n = 0; n < NUMSIZE; n++) {
@@ -117,12 +105,12 @@ void controlUpdate(void)
     // duty cycle (0-100) = compensator output * 100% / 2^10
     int duty = (compAcc*100)/1024;
     atverterH.setDutyCycle(duty);
-  } else { // slow gradient descent mode, avoids light-load instability
+  } else { // slow gradient descent mode
     gradDescCount++; // use a counter to control the rate of gradient descent
     if (gradDescCount > 4) {
       long duty = atverterH.getDutyCycle();
       compOut[0] = duty*1024/100;
-      if (vErr > 0) { // ascend or descend by 1% duty cycle depending on error
+      if (iErr > 0) { // ascend or descend by 1% duty cycle depending on error
         atverterH.setDutyCycle(duty + 1);
       } else {
         atverterH.setDutyCycle(duty - 1);
@@ -145,21 +133,20 @@ void controlUpdate(void)
     } else {
       Serial.println("Gradient Descent");
     }
-    Serial.print("VREF: ");
-    Serial.println(VREF);
-    Serial.print("VOut: ");
-    Serial.println(vOut);
-    Serial.print("VErr: ");
-    Serial.println(vErr);
+    Serial.print("IREF: ");
+    Serial.println(IREF);
+    Serial.print("IOut: ");
+    Serial.println(iOut);
+    Serial.print("IErr: ");
+    Serial.println(iErr);
     Serial.print("Duty: ");
     Serial.println(atverterH.getDutyCycle());
 
     if (stepUp) {
-      VREF = atverterH.mV2raw(12000); // step output up to approximately 12V
+      IREF = atverterH.mA2raw(-2000); // step output up to approximately 2A
     } else {
-      VREF = atverterH.mV2raw(8000); // step output down approximately 8V
+      IREF = atverterH.mA2raw(-500); // step output down approximately 0.5A
     }
     stepUp = !stepUp;
-
   }
 }

@@ -4,8 +4,6 @@
   Released into the public domain.
 */
 
-// https://docs.arduino.cc/learn/contributions/arduino-creating-library-guide
-
 #include "AtverterH.h"
 
 AtverterH::AtverterH() {
@@ -378,10 +376,50 @@ void AtverterH::checkThermalShutdown() {
     shutdownGates();
 }
 
+// Communications ------------------------------------------------------------
 
-
-
-
-
-
+// process the parsed RX command, overrides base class virtual function
+// Atverter readable registers: RV1, RV2, RI1, RI2, RT1, RT2, RVCC, RDUT
+// Atverter writable registers: WILIM, WTLIM
+void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtocol) {
+  if (strcmp(command, "RV1") == 0) { // read voltage at terminal 1
+    sprintf(getTXBuffer(receiveProtocol), "WV1:%d", getV1());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RV2") == 0) { // read voltage at terminal 2
+    sprintf(getTXBuffer(receiveProtocol), "WV2:%d", getV2());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RI1") == 0) { // read current at terminal 1
+    sprintf(getTXBuffer(receiveProtocol), "WI1:%d", getI1());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RI2") == 0) { // read current at terminal 2
+    sprintf(getTXBuffer(receiveProtocol), "WI2:%d", getI2());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RT1") == 0) { // read FET temperature of side 1
+    sprintf(getTXBuffer(receiveProtocol), "WT1:%d", getT2());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RT2") == 0) { // read FET temperature of side 1
+    sprintf(getTXBuffer(receiveProtocol), "WT2:%d", getT2());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RVCC") == 0) { // read the ~5V VCC bus voltage
+    sprintf(getTXBuffer(receiveProtocol), "WVCC:%d", getVCC());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RDUT") == 0) { // read the duty cycle
+    sprintf(getTXBuffer(receiveProtocol), "WDUT:%d", getDutyCycle());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WILM") == 0) { // write the current shutdown limit (mA)
+    int temp = atoi(value);
+    setCurrentShutdown(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WILM:=%d", temp);
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WTLM") == 0) { // write the thermal shutdown limit (°C)
+    int temp = atoi(value);
+    setThermalShutdown(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WTLM:=%d", temp);
+    respondToMaster(receiveProtocol);
+  } else { // send command data to the callback listener functions, registered from primary .ino file
+    for (int n = 0; n < _commandCallbacksEnd; n++) {
+      _commandCallbacks[n](command, value, receiveProtocol);
+    }
+  }
+}
 
