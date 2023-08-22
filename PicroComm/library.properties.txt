@@ -1,9 +1,0 @@
-name=PicroComm
-version=1.0.1
-author=Daniel Gerber
-maintainer=Daniel Gerber
-sentence=A library for Picrogrid boards to communicate with a Raspberry Pi.
-paragraph=An Arduino Library run on a Picrogrid board's microcontroller that simplifies communication between a Raspberry Pi and the Picrogrid board. This library supports two protocols: I2C through the 40-pin header, and UART from the Pi's USB.
-category=Device Control
-url=https://github.com/dgerb/Picrogrid
-architectures=*
