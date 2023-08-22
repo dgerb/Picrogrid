@@ -1,13 +1,13 @@
 /*
-  PicrogridBoard.h - Base class for all Picrogrid boards. Includes communication functions.
+  PicroBoard.h - Base class for all Picrogrid boards. Includes communication functions.
   Created by Daniel Gerber, 7/17/22
   Released into the public domain.
 */
 
-// Open Arduino IDE, select “Sketch” > “Include Library” > “Add .ZIP Library…”, and browse to find your PicrogridBoards.zip
+// Open Arduino IDE, select “Sketch” > “Include Library” > “Add .ZIP Library…”, and browse to find your PicroBoards.zip
 
-#ifndef PicrogridBoard_h
-#define PicrogridBoard_h
+#ifndef PicroBoard_h
+#define PicroBoard_h
 
 #include "Arduino.h"
 #include <Wire.h>
@@ -28,13 +28,13 @@ enum CommunicationsProtocol
     NUM_COMM_MODULES
 };
 
-// max length of command callback array
-const int COMMANDCALLBACKSMAXLENGTH = 10;
+const int COMMBUFFERSIZE = 16; // length of all character buffers (both receive and transmit)
+const int COMMANDCALLBACKSMAXLENGTH = 10; // max length of command callback array
 
-class PicrogridBoard
+class PicroBoard
 {
   public:
-    PicrogridBoard(); // constructor
+    PicroBoard(); // constructor
     // Communication functions for commands parsing and interpretation
     void addCommandCallback(CommandCallback callback); // adds a serial command callback to the array
     void parseRXLine(char* buffer, int receiveProtocol); // parses given rxBuffer and calls appropriate valueFunction
@@ -56,11 +56,11 @@ class PicrogridBoard
   protected:
     CommandCallback _commandCallbacks[COMMANDCALLBACKSMAXLENGTH]; // callback listeners to call at end of interpretRXCommand
     int _commandCallbacksEnd = 0; // moving end index of _commandCallbacks
-    char _rxBufferUART [32]; // receive holding buffer for UART packets
+    char _rxBufferUART [COMMBUFFERSIZE]; // receive holding buffer for UART packets
     int _rxCntUART = 0; // end index of _rxBufferUART
-    char _rxBufferI2C [32]; // receive holding buffer for I2C packets
+    char _rxBufferI2C [COMMBUFFERSIZE]; // receive holding buffer for I2C packets
     int _rxCntI2C = 0; // end index of _rxBufferUART
-    char _txBuffer [NUM_COMM_MODULES][32]; // transmit holding buffer prior to transmission  
+    char _txBuffer [NUM_COMM_MODULES][COMMBUFFERSIZE]; // transmit holding buffer prior to transmission  
 };
 
 #endif

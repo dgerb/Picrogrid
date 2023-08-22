@@ -380,7 +380,7 @@ void AtverterH::checkThermalShutdown() {
 
 // process the parsed RX command, overrides base class virtual function
 // Atverter readable registers: RV1, RV2, RI1, RI2, RT1, RT2, RVCC, RDUT
-// Atverter writable registers: WILIM, WTLIM
+// Atverter writable registers: WISD, WTSD
 void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RV1") == 0) { // read voltage at terminal 1
     sprintf(getTXBuffer(receiveProtocol), "WV1:%d", getV1());
@@ -406,15 +406,15 @@ void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtoc
   } else if (strcmp(command, "RDUT") == 0) { // read the duty cycle
     sprintf(getTXBuffer(receiveProtocol), "WDUT:%d", getDutyCycle());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WILM") == 0) { // write the current shutdown limit (mA)
+  } else if (strcmp(command, "WISD") == 0) { // write the current shutdown limit (mA)
     int temp = atoi(value);
     setCurrentShutdown(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WILM:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WISD:=%d", temp);
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WTLM") == 0) { // write the thermal shutdown limit (°C)
+  } else if (strcmp(command, "WTSD") == 0) { // write the thermal shutdown limit (°C)
     int temp = atoi(value);
     setThermalShutdown(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WTLM:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WTSD:=%d", temp);
     respondToMaster(receiveProtocol);
   } else { // send command data to the callback listener functions, registered from primary .ino file
     for (int n = 0; n < _commandCallbacksEnd; n++) {

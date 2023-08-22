@@ -1,18 +1,18 @@
 /*
-  PicrogridBoard.cpp - Base class for all Picrogrid boards. Includes communication functions.
+  PicroBoard.cpp - Base class for all Picrogrid boards. Includes communication functions.
   Created by Daniel Gerber, 7/17/22
   Released into the public domain.
 */
 
-// Open Arduino IDE, select “Sketch” > “Include Library” > “Add .ZIP Library…”, and browse to find your PicrogridBoards.zip
+// Open Arduino IDE, select “Sketch” > “Include Library” > “Add .ZIP Library…”, and browse to find your PicroBoards.zip
 
-#include "PicrogridBoard.h"
+#include "PicroBoard.h"
 
-PicrogridBoard::PicrogridBoard() {
+PicroBoard::PicroBoard() {
 }
 
 // adds a serial command callback to the array
-void PicrogridBoard::addCommandCallback(CommandCallback callback) {
+void PicroBoard::addCommandCallback(CommandCallback callback) {
   if (_commandCallbacksEnd < COMMANDCALLBACKSMAXLENGTH) {
     _commandCallbacks[_commandCallbacksEnd] = callback;
     _commandCallbacksEnd++;
@@ -20,18 +20,18 @@ void PicrogridBoard::addCommandCallback(CommandCallback callback) {
 }
 
 // parses the given rxBuffer and calls the appropriate valueFunction cooresponding to the command
-void PicrogridBoard::parseRXLine(char* buffer, int receiveProtocol) {
+void PicroBoard::parseRXLine(char* buffer, int receiveProtocol) {
   char* command = strtok(buffer, ":");
   char* value = strtok(NULL, "\n");
   interpretRXCommand(command, value, receiveProtocol);
 }
 
 // processes RX command, override it with something useful to the particular board
-void PicrogridBoard::interpretRXCommand(char* command, char* value, int receiveProtocol) {
+void PicroBoard::interpretRXCommand(char* command, char* value, int receiveProtocol) {
   // program should never get to here
 }
 
-void PicrogridBoard::respondToMaster(int receiveProtocol) { // responds to the raspberry Pi
+void PicroBoard::respondToMaster(int receiveProtocol) { // responds to the raspberry Pi
   switch (receiveProtocol) {
     case UART_INDEX:
       Serial.println(_txBuffer[UART_INDEX]);
@@ -48,27 +48,30 @@ void PicrogridBoard::respondToMaster(int receiveProtocol) { // responds to the r
 }
 
 // get a pointer to the indexed stored transmit buffer
-char * PicrogridBoard::getTXBuffer(int commIndex) {
+char * PicroBoard::getTXBuffer(int commIndex) {
   return _txBuffer[commIndex];
 }
 
 // start serial communications
-void PicrogridBoard::startUART(int baud) {
+void PicroBoard::startUART(int baud) {
   Serial.begin(baud);
 }
 
 // start serial communications
-void PicrogridBoard::startUART() {
+void PicroBoard::startUART() {
   startUART(9600);
 }
 
 // read in from the UART buffer and store it, returns true if \n detected
-void PicrogridBoard::readUART() {
+void PicroBoard::readUART() {
   while (Serial.available())
   {
     char c = Serial.read();
-    _rxBufferUART[_rxCntUART++] = c;
-    if ((c == '\n') || (_rxCntUART == sizeof(_rxBufferUART)-1))
+    // _rxBufferUART[_rxCntUART++] = c;
+    _rxBufferUART[_rxCntUART] = c;
+    _rxCntUART++;
+    //
+    if ((c == '\n') || (_rxCntUART == COMMBUFFERSIZE-1))
     {
         _rxBufferUART[_rxCntUART] = '\0';
         _rxCntUART = 0;
@@ -78,26 +81,26 @@ void PicrogridBoard::readUART() {
 }
 
 // get the stored UART buffer 
-char * PicrogridBoard::getRXBufferUART() {
+char * PicroBoard::getRXBufferUART() {
   return _rxBufferUART;
 }
 
 // parses the current UART rxBuffer
-void PicrogridBoard::parseRXLineUART() {
+void PicroBoard::parseRXLineUART() {
   parseRXLine(_rxBufferUART, UART_INDEX);
 }
 
 // start serial communications
-void PicrogridBoard::startI2C(int address, ReceiveEventI2C receiveCallback, RequestEventI2C requestCallback) {
+void PicroBoard::startI2C(int address, ReceiveEventI2C receiveCallback, RequestEventI2C requestCallback) {
 
-// void PicrogridBoard::startI2C(int address, void (*callback)(int)) {
+// void PicroBoard::startI2C(int address, void (*callback)(int)) {
   Wire.begin(address);
   Wire.onReceive(receiveCallback);
   Wire.onRequest(requestCallback);
 }
 
 // function to handle when an I2C message comes in
-void PicrogridBoard::receiveEventI2C(int howMany) {
+void PicroBoard::receiveEventI2C(int howMany) {
   Serial.println("received");
   for (int i = 0; i < howMany; i++) {
     _rxBufferI2C[i] = Wire.read();
@@ -109,18 +112,18 @@ void PicrogridBoard::receiveEventI2C(int howMany) {
   parseRXLineI2C();
 }
 
-void PicrogridBoard::requestEventI2C() {
+void PicroBoard::requestEventI2C() {
   Serial.println("requested");
   Wire.write(_txBuffer[I2C_INDEX]);
   _txBuffer[I2C_INDEX][0] = '\0';
 }
 
-char * PicrogridBoard::getRXBufferI2C() { // get the stored I2C buffer
+char * PicroBoard::getRXBufferI2C() { // get the stored I2C buffer
   return _rxBufferI2C;
 }
 
 // parses the current I2C rxBuffer
-void PicrogridBoard::parseRXLineI2C() {
+void PicroBoard::parseRXLineI2C() {
   parseRXLine(_rxBufferI2C, I2C_INDEX);
 }
 

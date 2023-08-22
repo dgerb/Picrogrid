@@ -10,7 +10,7 @@
 #define AtverterH_h
 
 // #include "Arduino.h"
-#include "PicrogridBoard.h"
+#include "PicroBoard.h"
 
 // In Arduino IDE, go to Sketch -> Include Library -> Manage Libraries
 #include <FastPwmPin.h> // Add zip library from: https://github.com/maxint-rd/FastPwmPin
@@ -80,7 +80,7 @@ const int TTABLE[14][2] = {
   880, 100
 };
 
-class AtverterH : public PicrogridBoard
+class AtverterH : public PicroBoard
 {
   public:
     AtverterH(); // constructor

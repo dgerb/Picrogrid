@@ -11,9 +11,9 @@ In order to run the Examples, the Library must first be installed. Installation 
 ## Flashing the Picrogrid boards
 
 There are three ways to load your C++ code onto the Picrogrid board:
-(1) USB/TTL cable
-(2) AVRISP programmer
-(3) Raspberry Pi SPI pins
+- USB/TTL cable
+- AVRISP programmer
+- Raspberry Pi SPI pins
 
 ## Flashing the Picrogrid board with the USB/TTL cable
 
@@ -22,12 +22,9 @@ You can use an FTDI USB/TTL cable to flash the Picrogrid board similar to how yo
 First, plug in the FTDI USB/TTL cable, noting that the black wire corresponds to the GND marking on the board.
 
 In the one of the examples subdirectories, open an example program (such as Blink) in the Arduino IDE. Once open, select the Tools tab, and ensure the following settings:
-
-Board: "Arduino Uno" (found under Arduino AVR Boards)
-
-Port: "/dev/cu.usbserial-AB0JTGZW" (this is what shows up on my mac, will be different for others)
-
-Programmer: "AVRISP mkII"
+- Board: "Arduino Uno" (found under Arduino AVR Boards)
+- Port: "/dev/cu.usbserial-AB0JTGZW" (this is what shows up on my mac, will be different for others)
+- Programmer: "AVRISP mkII"
 
 You should be able to compile and upload the example. If you selected Blink, you should see flashing lights after a few seconds.
 
@@ -40,9 +37,8 @@ First, plug in the AVRISP programmer, noting that the extrusion on the side of t
 
 In the one of the examples subdirectories, open an example program (such as Blink) in the Arduino IDE. Here, you can do one of two things: (a) burn the boot loader and upload code via a FTDI USB/TTL cable, or (b) upload code via the programmer, knowing that this does not upload a boot loader.
 
-(a) To burn the boot loader, select: Tools > Burn Bootloader
-
-(b) To upload code via the programmer, select: Sketch > Upload Using Programmer
+- (a) To burn the boot loader, select: Tools > Burn Bootloader
+- (b) To upload code via the programmer, select: Sketch > Upload Using Programmer
 
 ## Flashing the Picrogrid board with the Raspberry Pi
 
