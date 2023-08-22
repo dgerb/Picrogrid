@@ -1,0 +1,9 @@
+name=PicrogridBoards
+version=1.0.1
+author=Daniel Gerber
+maintainer=Daniel Gerber
+sentence=A library for all boards in the Picrogrid ecosystem.
+paragraph=An Arduino Library run on a Picrogrid board's Atmega microcontroller, including the following classes: (a) PicrogridBoard: base class for all Picrogrid boards that includes functions for communication with a Raspberry Pi, (b) AtverterH: a class containing all subroutines necessary for configuration, sensing, and control of an Atverter Hobbyist board, (c) (future work: MicroDDC board to support third party sensors and controllers).
+category=Device Control
+url=https://github.com/dgerb/Picrogrid
+architectures=*
