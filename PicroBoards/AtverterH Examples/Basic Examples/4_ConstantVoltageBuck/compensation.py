@@ -15,22 +15,30 @@ from sympy.physics.control.lti import TransferFunction
 import sympy.physics.control.control_plots as cp
 
 # setting flags
-CONVERTER = 'boost' # 'buck', 'boost', 'buckboost'
-MODE = 'CC' # 'CV', 'CC'
+CONVERTER = 'buckboost' # 'buck', 'boost', 'buckboost'
+MODE = 'CV' # 'CV', 'CC'
 USEDELAY = True
 STEPGAIN = 4 # multiplier for default step response to 1*u(t)
 
 # set these values for the system
 tdelay = 1e-3 # digital loop update interrupt interval
-VO = 10.0 # desired output voltage (i.e. reference voltage)
-IO = .1 # large signal output current operating point
-VI = 20.0 # large signal input voltage operating point
+VO = 15.0 # desired output voltage (i.e. reference voltage)
+IO = 1 # large signal output current operating point
+VI = 12.0 # large signal input voltage operating point
 C = 100e-6 # output capacitor
 L = 47e-6 # main inductor
 
 # calculated values
 R = VO/IO # large signal equivalent output resistance
-D = float(VO)/VI # large signal duty cycle operating point
+if CONVERTER == 'buck':
+    D = float(VO)/VI # large signal duty cycle operating point
+elif CONVERTER == 'boost':
+    D = (float(VO) - VI)/(VO)
+elif CONVERTER == 'buckboost':
+    D = float(VO)/(VO + VI)
+else:
+    print('unknown converter type. exiting')
+    exit()
 Dp = 1 - D # large signal duty cycle complement
 
 s = ct.TransferFunction.s
@@ -76,9 +84,6 @@ elif CONVERTER == 'buckboost':
     w0 = Dp/math.sqrt(L*C)
     Q = Dp*R*math.sqrt(C/L)
     wz = Dp**2*R/(D*L)
-else:
-    print('unknown converter type. exiting')
-    exit()
 if CONVERTER == 'buck':
     Gvd = ct.minreal(Gd0/(1 + s/(Q*w0) + (s/w0)**2)) # duty cycle to output voltage tf
 elif CONVERTER == 'boost' or CONVERTER == 'buckboost':
@@ -96,9 +101,9 @@ ladtop = 120e3
 Gladder = ladbot/(ladbot+ladtop)
 # hall effect sensor (output current)
 sensitivity = 0.333 # 333 mV/A sensitivity
-cfilt = 10e-9 # external filter cap
-rfint = 1800 # internal filter resistance
-Ghall = sensitivity*(1/(s*cfilt))/(rfint + 1/(s*cfilt))
+# cfilt = 10e-9 # external filter cap
+# rfint = 1800 # internal filter resistance
+# Ghall = sensitivity*(1/(s*cfilt))/(rfint + 1/(s*cfilt))
 Ghall = sensitivity
 # adc
 adcRes = 1024
@@ -124,22 +129,27 @@ else:
 
 # compensator design ------------------------------------------------------------
 
-if USEDELAY: # custom compensator with low-frequency dominant pole to overcome delay effects
-    Gcomp = 1/(s*tdelay) # phase margin 81°
-    # Gcomp = 1/(s*tdelay)*(1+s/200)/(1+s/1000)*.5 # phase margin 119°
-    # Gcomp = 1/(s*tdelay)/(1+s/300)*2 # phase margin 27°
-else: # compensator design for second order system (E&M 2020 p383)
-    pm = 70
-    f0 = w0/(2*math.pi)
-    fc = f0*5 # arbitrarily pick a crossover frequency 5x above the resonant frequency
-    fz = fc*math.sqrt((1-math.sin(math.radians(pm)))/(1+math.sin(math.radians(pm))))
-    fp = fc*math.sqrt((1+math.sin(math.radians(pm)))/(1-math.sin(math.radians(pm))))
-    fl = fz/10 # arbitrarily set lag compenation pole 10x below crossover frequency
-    Tu0 = GloopUC.dcgain()
-    Gc0 = (fc/f0)**2*(1/Tu0)*math.sqrt(fz/fp)
-    print([fz, fp, f0, Tu0, Gc0])
-    Gcomp = Gc0*(1+s/(2*math.pi*fz))/(1+s/(2*math.pi*fp)) # lead comp for phase margin
-    Gcomp = Gcomp*(1 + (2*math.pi*fl)/s) # add a lag comp factor for high DC gain
+if CONVERTER == 'buck':
+    if USEDELAY: # custom compensator with low-frequency dominant pole to overcome delay effects
+        Gcomp = 1/(s*tdelay) # phase margin 81°
+        # Gcomp = 1/(s*tdelay)*(1+s/200)/(1+s/1000)*.5 # phase margin 119°
+        # Gcomp = 1/(s*tdelay)/(1+s/300)*2 # phase margin 27°
+    else: # compensator design for second order system (E&M 2020 p383)
+        pm = 70
+        f0 = w0/(2*math.pi)
+        fc = f0*5 # arbitrarily pick a crossover frequency 5x above the resonant frequency
+        fz = fc*math.sqrt((1-math.sin(math.radians(pm)))/(1+math.sin(math.radians(pm))))
+        fp = fc*math.sqrt((1+math.sin(math.radians(pm)))/(1-math.sin(math.radians(pm))))
+        fl = fz/10 # arbitrarily set lag compenation pole 10x below crossover frequency
+        Tu0 = GloopUC.dcgain()
+        Gc0 = (fc/f0)**2*(1/Tu0)*math.sqrt(fz/fp)
+        print([fz, fp, f0, Tu0, Gc0])
+        Gcomp = Gc0*(1+s/(2*math.pi*fz))/(1+s/(2*math.pi*fp)) # lead comp for phase margin
+        Gcomp = Gcomp*(1 + (2*math.pi*fl)/s) # add a lag comp factor for high DC gain
+elif CONVERTER == 'boost':
+    Gcomp = 1/(s*tdelay)
+elif CONVERTER == 'buckboost':
+    Gcomp = 1/(s*tdelay)
 # compensated loop gain = uncompensated loop gain * compensator gain
 GloopC = ct.minreal(GloopUC*Gcomp)
 

@@ -112,6 +112,7 @@ void AtverterH::refreshBootstrap() {
 // set gate driver 1 to use an always-high alternate signal
 void AtverterH::applyHoldHigh1() {
   digitalWrite(VCTRL1_PIN, HIGH);
+  digitalWrite(VCTRL2_PIN, LOW);
   digitalWrite(ALT_PIN, HIGH);
   refreshBootstrap();
 }
@@ -119,6 +120,7 @@ void AtverterH::applyHoldHigh1() {
 // set gate driver 2 to use an always-high alternate signal
 void AtverterH::applyHoldHigh2() {
   digitalWrite(VCTRL2_PIN, HIGH);
+  digitalWrite(VCTRL1_PIN, LOW);
   digitalWrite(ALT_PIN, HIGH);
   refreshBootstrap();
 }
@@ -278,7 +280,9 @@ int AtverterH::raw2degC(int raw) {
 
 // converts a mV value (0-65000) to raw 10-bit form (0-1023)
 int AtverterH::mV2raw(unsigned int mV) { // mV * 10k/(10k+120k) * 1024/VCC
+  Serial.println(mV);
   long temp = (long)mV * 79 / getVCC();
+  Serial.println(temp);
   return (int)(temp);
 }
 
