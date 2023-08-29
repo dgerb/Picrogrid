@@ -2,40 +2,41 @@
   PowerSupply
 
   A wide-input power supply with constant voltage output.
-  Input: Terminal 1, 13-48V (compensator tuned for 20V input)
-  Output: Terminal 2, 8V or 12V constant voltage (compensator tuned for 1A output)
+  Input: Terminal 1, 8-48V (compensator tuned for 20V input)
+  Output: Terminal 2, adjustable 8-48V (15V default)
   
   Test Set-up:
-  Input: Voltage supply attached to terminal 1, set to CV at 20V with 3A current limit
-  Output: Electronic load attached to terminal 2, is set to CC mode between 0A to 3A
+  Input: Voltage supply attached to terminal 1, set to CV at 8-20V with 3A current limit
+  Output: Electronic load attached to terminal 2, is set to CC mode between 0-2A
 
-  For a discrete-time compensator design reference, see compensation.py
+  This example builds on the ConstantVoltageBuck example to add multi-mode support. The converter operates in boost,
+  buck-boost, or buck mode when the output voltage is below, in proximity, or above the input voltage, respectively.
+  The reason for doing this is that buck and boost modes are nearly twice as efficient as buck-boost mode. We also
+  constrain the duty cycle somewhat to assist start-up in boost and buck-boost modes and prevent input supply collapse
+  under output load.
 
-  The feedback control loop uses a classical feedback voltage-mode discrete-time compensator when the
-  output current is between 0.5A to 5A, and a gradient-descent algorithm for when the output current
-  is 0A to 0.5A. The reason is that classical voltage-mode feedback loops go unstable at low current since 
-  the converter's high Q factor causes multiple zero crossings.
+  In addition, the power supply can use droop control to allow for current sharing between identical supplies in
+  parallel. This method droops the reference voltage proportionally to the output current. If one supply outputs
+  too much current, its output voltage will droop, allowing the other supply to catch up. Droop control leverages
+  an adjustable droop resistance, the proportionality factor between voltage droop and output current.
 
-  Created 7/31/23 by Daniel Gerber
+  Finally, this example also adds support for adjusting the output voltage reference setpoint (WVREF, RVREF) and the droop
+  resistance (WRDRP, RRDRP) via serial commands of the form <REG:VALUE>.
+
+  Created 8/28/23 by Daniel Gerber
 */
 
 #include <AtverterH.h>
 
-enum DCDCMode 
+enum DCDCMode // multimode support is done through a finite state machine
 {   BUCK = 0,
     BOOST, 
     BUCKBOOST,
     NUM_DCDCMODES
 };
-
-void changeDCDCMode(int mode, int vin, int vref);
-void setVREF(unsigned int vrefmv);
-int constrainDuty(int duty);
-
 int dcdcMode = BOOST;
 
 AtverterH atverter;
-
 long slowInterruptCounter = 0;
 
 int compIn [] = {0, 0, 0}; // must be equal or longer than compNum
@@ -54,9 +55,12 @@ const int OUTSIZE = sizeof(compOut) / sizeof(compOut[0]);
 const int NUMSIZE = sizeof(compNum) / sizeof(compNum[0]);
 const int DENSIZE = sizeof(compDen) / sizeof(compDen[0]);
 
-int VREF = 0;
-int RDroop = 0;
-int threshold [] = {0, 0, 0, 0};
+int VREF = 0; // reference output voltage setpoint
+int RDroop = 0; // droop resistance in milli-ohms
+// vin/vref thresholds for transitioning between DCDC Modes, multiplied by 10
+// {buck-boost to boost, boost to buck-boost, buck to buck-boost, buck-boost to buck}
+// thresholds are designed to give some hysteresis between transitions
+int threshold10 [] = {8, 9, 11, 12};
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -66,9 +70,11 @@ void setup() {
   atverter.setThermalShutdown(60); // set gate shutdown at 60°C temperature
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 
+  // set up UART command support
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
 
+  // better to set VREF before starting the PWM
   setVREF(15000); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
   atverter.startPWM();
 }
@@ -83,27 +89,22 @@ void controlUpdate(void)
   atverter.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
-  // measure Vout and calculate error
-
-  // raw 10-bit output voltage = actual voltage * 10k/(10k+120k) * 2^10 / 5V
   int vOut = atverter.getRawV2();
   int iOut = -1*(atverter.getRawI2() - 512);
+
   // ohmraw = mV/mA * A mA/rawI / (B mV/rawV) = A/B * ohm = A/(1000*B) mohm
   //  = (mohm / 1000) * (atverter.mA2raw(1000) - 512) / (atverter.mV2raw(1000))
   //  = (mohm / 1000) * (vcc/341) / (vcc/79)
   //  = mohm / 1000 * 79 / 341
   int droopVREF = VREF - (long)iOut*RDroop/4316;
   // error = drooped reference - output voltage
-  int vErr = droopVREF - vOut;
-
-  // update past compensator inputs and outputs
-  // must do this even if using gradient descent for smooth transition to classical feedback
+  int error = droopVREF - vOut;
 
   // update array of past compensator inputs
   for (int n = INSIZE - 1; n > 0; n--) {
     compIn[n] = compIn[n-1];
   }
-  compIn[0] = vErr;
+  compIn[0] = error;
   // update array of past compensator outputs
   for (int n = OUTSIZE - 1; n > 0; n--) {
     compOut[n] = compOut[n-1];
@@ -135,7 +136,7 @@ void controlUpdate(void)
       long duty = atverter.getDutyCycle();
       duty = constrainDuty(duty);
       compOut[0] = duty*1024/100;
-      if (vErr > 0) { // ascend or descend by 1% duty cycle depending on error
+      if (error > 0) { // ascend or descend by 1% duty cycle depending on error
         atverter.setDutyCycle(duty + 1);
       } else {
         atverter.setDutyCycle(duty - 1);
@@ -144,7 +145,26 @@ void controlUpdate(void)
     }
   }
 
-  // in this example, report loop values and step from 8V to 12V or vice versa every 3 seconds
+  // dc-dc mode finite state machine (switch between buck, boost, and buck-boost)
+  int vIn = atverter.getRawV1();
+  int vIn10 = 10*vIn; // multiply by 10 before comparing so as to avoid floating point calcs
+  switch(dcdcMode) {
+    case BOOST:
+      if (vIn10 > threshold10[1]*VREF)
+        changeDCDCMode(BUCKBOOST, vIn, VREF);
+      break;
+    case BUCKBOOST:
+      if (vIn10 > threshold10[3]*VREF)
+        changeDCDCMode(BUCK, vIn, VREF);
+      else if (vIn10 < threshold10[0]*VREF)
+        changeDCDCMode(BOOST, vIn, VREF);
+      break;
+    case BUCK:
+      if (vIn10 < threshold10[2]*VREF)
+        changeDCDCMode(BUCKBOOST, vIn, VREF);
+      break;
+  }
+
   slowInterruptCounter++;
   if (slowInterruptCounter > 3000) { // timer set such that each count is 1 ms
     slowInterruptCounter = 0;
@@ -152,46 +172,29 @@ void controlUpdate(void)
     atverter.updateTSensors(); // occasionally read thermistors and update temperature moving average
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
   }
-
-  // dc-dc mode finite state machine (switch between buck, boost, and buck-boost)
-  int vIn = atverter.getRawV1();
-  switch(dcdcMode) {
-    case BOOST:
-      if (vIn > threshold[1])
-        changeDCDCMode(BUCKBOOST, vIn, VREF);
-      break;
-    case BUCKBOOST:
-      if (vIn > threshold[3])
-        changeDCDCMode(BUCK, vIn, VREF);
-      else if (vIn < threshold[0])
-        changeDCDCMode(BOOST, vIn, VREF);
-      break;
-    case BUCK:
-      if (vIn < threshold[2])
-        changeDCDCMode(BUCKBOOST, vIn, VREF);
-      break;
-  }
 }
 
-void changeDCDCMode(int mode, int vin, int vref) {
+// switches the FSM state, changes converter mode,
+// updates the duty cycle to an appropriate estimate, and resets compensator past values
+void changeDCDCMode(int mode, int vin, int vOut) {
   int duty;
   switch(mode) { // duty cycle on page 3 of: https://www.ti.com/lit/an/slyt765/slyt765.pdf
     case BUCK:
       dcdcMode = BUCK;
       atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
-      duty = 100*(long)vref/vin;
+      duty = 100*(long)vOut/vin;
       atverter.setDutyCycle(duty);
       break;
     case BOOST:
       dcdcMode = BOOST;
       atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
-      duty = 100*(long)(vref - vin)/vref;
+      duty = 100*(long)(vOut - vin)/vOut;
       atverter.setDutyCycle(duty);
       break;
     case BUCKBOOST:
       dcdcMode = BUCKBOOST;
       atverter.removeHold();
-      duty = 100*(long)vref/(vin + vref);
+      duty = 100*(long)vOut/(vin + vOut);
       atverter.setDutyCycle(duty);
       break;
   }
@@ -205,21 +208,21 @@ void changeDCDCMode(int mode, int vin, int vref) {
   }
 }
 
-void setVREF(unsigned int vrefmv) {
-  VREF = atverter.mV2raw(vrefmv);
-  threshold[0] = VREF*0.8;
-  threshold[1] = VREF*0.9;
-  threshold[2] = VREF*1.1;
-  threshold[3] = VREF*1.2;
+// sets the reference output voltage and updates to the appropriate DCDC converter mode
+void setVREF(unsigned int vRefMv) {
+  VREF = atverter.mV2raw(vRefMv);
   int vIn = atverter.getRawV1();
-  if (vIn < threshold[1])
+  int vIn10 = 10*vIn;
+  if (vIn10 < threshold10[1]*VREF)
     changeDCDCMode(BOOST, vIn, VREF);
-  else if (vIn < threshold[2])
+  else if (vIn10 < threshold10[2]*VREF)
     changeDCDCMode(BUCKBOOST, vIn, VREF);
   else
     changeDCDCMode(BUCK, vIn, VREF);
 }
 
+// constrains the duty cycle to reasonable values, which can sometimes help prevent the input
+// supply from collapsing when it starts up 
 int constrainDuty(int duty) {
   switch (dcdcMode) {
     case BOOST:
@@ -235,6 +238,7 @@ int constrainDuty(int duty) {
   return duty;
 }
 
+// serial command interpretation function
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "WVREF") == 0) {
     writeVREF(value, receiveProtocol);
@@ -247,6 +251,7 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   }
 }
 
+// sets the reference output voltage set point from a serial command
 void writeVREF(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atoi(valueStr);
   setVREF(temp);
@@ -254,12 +259,14 @@ void writeVREF(const char* valueStr, int receiveProtocol) {
   atverter.respondToMaster(receiveProtocol);
 }
 
+// gets the reference output voltage set point and outputs to serial
 void readVREF(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atverter.raw2mV(VREF);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WVREF:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
 
+// sets the droop resistance from a serial command
 void writeDroopRes(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atoi(valueStr);
   RDroop = temp;
@@ -267,6 +274,7 @@ void writeDroopRes(const char* valueStr, int receiveProtocol) {
   atverter.respondToMaster(receiveProtocol);
 }
 
+// gets the droop resistance and outputs to serial
 void readDroopRes(const char* valueStr, int receiveProtocol) {
   sprintf(atverter.getTXBuffer(receiveProtocol), "WRDRP:%d", RDroop);
   atverter.respondToMaster(receiveProtocol);
