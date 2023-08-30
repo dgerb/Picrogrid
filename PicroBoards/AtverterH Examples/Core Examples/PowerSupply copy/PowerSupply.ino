@@ -1,22 +1,27 @@
 /*
-  PowerSupply
+  MultiModeSupply
 
-  A power supply with constant voltage and constant current outputs when voltage and current limited, respectively.
+  A wide-input realtime multi-mode power supply with constant voltage output.
   Input: Terminal 1, 8-48V (compensator tuned for 20V input)
   Output: Terminal 2, adjustable 8-48V (15V default)
   
   Test Set-up:
   Input: Voltage supply attached to terminal 1, set to CV at 8-20V with 3A current limit
-  Output: Electronic load attached to terminal 2, is set to CR mode between 8 and 15 ohms
+  Output: Electronic load attached to terminal 2, is set to CC mode between 0-2A
 
-  This example builds on the ConstantVoltageBuck example and adds several features. First, it allows the user to
-  select a DC-DC conversion mode, between buck, boost, and buck-boost operation. This feature is set by the line
-  const int DCDCMODE.
+  This example builds on the ConstantVoltageBuck example to add realtime multi-mode support. The converter operates in boost,
+  buck-boost, or buck mode when the output voltage is below, in proximity, or above the input voltage, respectively.
+  The reason for doing this is that buck and boost modes are nearly twice as efficient as buck-boost mode. We also
+  constrain the duty cycle somewhat to assist start-up in boost and buck-boost modes and prevent input supply collapse
+  under output load.
 
-  The power supply allows an optional current limit, which functions as it would in a standard power supply. If the
-  output current exceeds the current limit, the supply will droop/collapse the output voltage until the current limit
-  is met. This function can also be used to configure the power supply in constant current mode; set the voltage limit
-  to 60000 mV, and control the output current exclusively. In this way, the Atverter can be used as an LED driver.
+  Note that realtime multi-mode operation poses a very difficult controls problem, as detailed in:
+  https://www.ti.com/lit/an/slyt765/slyt765.pdf
+  This code can certainly use improvement; it is a work in progress. I would also like to try to extend realtime
+  multi-mode operation to the constant-current examples, but that is much more difficult. Here we have fairly fixed values
+  of VIN and VREF by which to compare the mode transition thresholds. With constant current, you must use vOut instead of VREF,
+  which can cause all sorts of crazy instabilities since vOut is already being regulated by a control loop. As such, all the
+  other examples only use fixed (compile-time) multi-mode operation.
 
   The power supply also demonstrates the use of droop control to allow for current sharing between identical supplies
   in parallel. This method droops the reference voltage proportionally to the output current. If one supply outputs
@@ -29,23 +34,23 @@
   to increase the resistance, however this can sometimes introduce oscillations in a barely-stable system. In addition,
   collapsing the supply lower than the input voltage in boost mode is not yet supported.
 
-  Finally, this example also adds support for adjusting the voltage limit (WVLIM, RVLIM), current limit (WILIM, RILIM),
-  and the droop resistance (WRDRP, RRDRP) via serial commands of the form <REG:VALUE>.
+  Finally, this example also adds support for adjusting the output voltage reference setpoint (WVREF, RVREF) and the droop
+  resistance (WRDRP, RRDRP) via serial commands of the form <REG:VALUE>.
 
-  Created 8/29/23 by Daniel Gerber
+  Created 8/28/23 by Daniel Gerber
 */
 
 #include <AtverterH.h>
 AtverterH atverter;
 
-const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
+const int DCDCMODE = BUCKBOOST; // BUCK, BOOST, BUCKBOOST
 const int VLIMDEFAULT = 15000; // default voltage limit setting in mV
 const int ILIMDEFAULT = 1500; // default current limit setting in mA
 
-int vLim = 0; // reference output voltage setpoint (raw 0-1023)
-int iLim = 1024; // current limit (raw 0-1023)
+int VREF = 0; // reference output voltage setpoint (raw 0-1023)
 unsigned int RDroop32 = 0; // 32 times the raw droop resistance, used this way to avoid a division
-int outputMode = CV; // constant voltage (CV) or constant current (CC) mode finite state machine
+int iLim = 1024; // current limit (raw 0-1023)
+int iLimRes = 0; // current limit resistance for drooping reference voltage
 
 int compIn [] = {0, 0, 0}; // must be equal or longer than compNum
 int compOut [] = {0, 0, 0}; // must be equal or longer than compDen
@@ -76,10 +81,8 @@ void setup() {
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
 
-  // initialize voltage and current limits to default values above
-  vLim = atverter.mV2raw(VLIMDEFAULT); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
+  setVREF(VLIMDEFAULT); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
   iLim = atverter.mA2rawSigned(ILIMDEFAULT);
-  // apply holds on either side of the Atverter based on DC-DC operation mode
   switch(DCDCMODE) {
     case BUCK:
       atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
@@ -88,10 +91,10 @@ void setup() {
       atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
       break;
     case BUCKBOOST:
-      atverter.removeHold(); // removes holds; both sides will be switching
+      atverter.removeHold();
       break;
   }
-  atverter.startPWM(); // once all is said and done, start the PWM
+  atverter.startPWM();
 }
 
 void loop() { } // we don't use loop() because it does not loop at a fixed period
@@ -106,29 +109,21 @@ void controlUpdate(void)
 
   int vOut = atverter.getRawV2();
   int iOut = -1*(atverter.getRawI2() - 512);
-    // normally raw current is 0-1024. here we center it around zero to be -512 to 512
-    // and we multiply by -1, since positive current is technically defined as current into the terminal
-    // but here, current out of the terminal is easier to work with 
 
-  // check conditions to switch between constant voltage and constant current states
-  if (iOut > iLim) { // switch to constant current if output current exceeds current limit
-    outputMode = CC;
-    resetComp();
-  } else if (vOut > vLim) { // switch to constant voltage if output voltage exceeds voltage limit
-    outputMode = CV;
-    resetComp();
-  }
+  // determine the current-limit resistance based on the output current
+  if (iOut > ILIM) // if greater than current limit rapidly increase limit resistance
+    iLimRes = iLimRes + 50;
+  else if (iOut > ILIM*15/16) // if near current limit, slowly increase limit resistance
+    iLimRes = iLimRes + 1;
+  else // slowly decrease current limit resistance until steady state reached
+    iLimRes = constrain(iLimRes - 1, 0, iLimRes);
 
-  int error;
-  if (outputMode == CC) { // constant current operation
-    error = iLim - iOut; // error is difference between current limit and output current
-  } else { // constant voltage operation
-    // if using droop control, we droop the reference voltage by a term proportional to the output current.
-    // we initially multiply the droop resistance by 32, and then divide it again here to avoid long
-    //  division and floating point math
-    // error = drooped reference - output voltage
-    error = (vLim - iOut*RDroop32/32) - vOut;
-  }
+  // the drooped reference voltage is calculated based on the nominal reference voltage, droop resistance,
+  //  and the secondary current limiter droop resistance
+  int droopVREF = VREF - iOut*RDroop32/32 + iOut*iLimRes;
+
+  // error = drooped reference - output voltage
+  int error = droopVREF - vOut;
 
   // update array of past compensator inputs
   for (int n = INSIZE - 1; n > 0; n--) {
@@ -182,24 +177,17 @@ void controlUpdate(void)
   }
 }
 
-// resets the compensator past values when switching between CV and CC
-void resetComp() {
-  // reset array of past compensator inputs
-  for (int n = 0; n < INSIZE; n++) {
-    compIn[n] = 0;
-  }
-  // reset array of past compensator outputs
-  for (int n = 0; n < OUTSIZE; n++) {
-    compOut[n] = atverter.getDutyCycle()*10; // duty*1024/100
-  }
+// sets the reference output voltage and updates to the appropriate DCDC converter mode
+void setVREF(unsigned int vRefMv) {
+  VREF = atverter.mV2raw(vRefMv);
 }
 
 // serial command interpretation function
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
-  if (strcmp(command, "WVLIM") == 0) {
-    writeVLIM(value, receiveProtocol);
-  } else if (strcmp(command, "RVLIM") == 0) {
-    readVLIM(value, receiveProtocol);
+  if (strcmp(command, "WVREF") == 0) {
+    writeVREF(value, receiveProtocol);
+  } else if (strcmp(command, "RVREF") == 0) {
+    readVREF(value, receiveProtocol);
   } else if (strcmp(command, "WRDRP") == 0) {
     writeDroopRes(value, receiveProtocol);
   } else if (strcmp(command, "RRDRP") == 0) {
@@ -212,17 +200,17 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
 }
 
 // sets the reference output voltage (mV) set point from a serial command
-void writeVLIM(const char* valueStr, int receiveProtocol) {
+void writeVREF(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atoi(valueStr);
-  vLim = atverter.mV2raw(temp);
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WVLIM:=%d", temp);
+  setVREF(temp);
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WVREF:=%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
 
 // gets the reference output voltage (mV) set point and outputs to serial
-void readVLIM(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.raw2mV(vLim);
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WVLIM:%d", temp);
+void readVREF(const char* valueStr, int receiveProtocol) {
+  unsigned int temp = atverter.raw2mV(VREF);
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WVREF:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
 
@@ -235,14 +223,14 @@ void writeDroopRes(const char* valueStr, int receiveProtocol) {
   //  = (mohm / 1000) * (atverter.mA2raw(1000) - 512) / (atverter.mV2raw(1000))
   //  = (mohm / 1000) * (vcc/341) / (vcc/79)
   //  = mohm / 1000 * 79 / 341
-  temp = 32*temp/4316; // here we multiply by 32 so as to avoid using floating point math
+  temp = 32*temp/4316;
   RDroop32 = temp;
   atverter.respondToMaster(receiveProtocol);
 }
 
 // gets the droop resistance (milli-ohms) and outputs to serial
 void readDroopRes(const char* valueStr, int receiveProtocol) {
-  long temp = RDroop32*4316/32; 
+  long temp = RDroop32*4316/32;
   sprintf(atverter.getTXBuffer(receiveProtocol), "WRDRP:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
@@ -250,14 +238,12 @@ void readDroopRes(const char* valueStr, int receiveProtocol) {
 // sets the current limit (mA) from a serial command
 void writeILIM(const char* valueStr, int receiveProtocol) {
   int temp = atoi(valueStr);
-  iLim = atverter.mA2rawSigned(temp); // convert the mA value to a raw 0-1023 form
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WILIM:=%d", temp);
-  atverter.respondToMaster(receiveProtocol);
+  ILIM = atverter.mA2rawSigned(temp);
 }
 
 // gets the current limit (mA) and outputs to serial
 void readILIM(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.rawSigned2mA(iLim);
+  unsigned int temp = atverter.rawSigned2mA(ILIM);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WILIM:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }

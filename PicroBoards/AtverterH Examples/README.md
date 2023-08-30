@@ -11,9 +11,16 @@ The basic examples are meant to teach users how to use the Atverter and its API.
 ## Core Examples
 
 The core examples illustrate practical operation of the Atverter in several scenarios. Each example is configured with serial operation, and demonstrates operation in buck, boost, and buck-boost modes.
-- 1. LED Driver - Operates the Atverter in constant-current mode for an LED output with default 1A set point.
+- 1. Power Supply - Operates the Atverter as a constant voltage or constant current power supply with a programmable voltage limit, current limit, and droop resistance.
 
 COMING Soon:
-- 2. Constant Voltage Bus - Operates the Atverter in constant-voltage mode and maintains a 24V bus output.
-- 3. Battery Management System - Operates the Atverter as a bi-directional converter interface with a 24V battery. Includes a state of charge estimation algorithm.
-- 4. Solar Power Optimizer - Operates the Atverter with a maximum power-point tracking algorithm, allowing it to draw power from a 24V solar panel.
+- 2. Battery Management System - Operates the Atverter as a bi-directional converter interface with a 24V battery. Includes a state of charge estimation algorithm.
+- 3. Solar Power Optimizer - Operates the Atverter with a maximum power-point tracking algorithm, allowing it to draw power from a 24V solar panel.
+
+## Special Examples
+
+The special examples demonstrate special features or control strategies that are unique to programmable power converters such as the Atverter. These examples are generally considered difficult to implement on standard non-programmable converters.
+- 1. Multi-mode Power Supply - A special wide-input power supply that can change between DC-DC conversion modes in realtime, allowing for greatly improved efficiency.
+
+
+

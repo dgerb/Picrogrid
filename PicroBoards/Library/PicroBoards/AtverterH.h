@@ -58,6 +58,21 @@ enum SensorIndex
     NUM_SENSORS
 };
 
+// DC-DC operation modes enumerator for convenience
+enum DCDCModes
+{   BUCK = 0,
+    BOOST, 
+    BUCKBOOST,
+    NUM_DCDCMODES
+};
+
+// output modes enumerator for convenience
+enum OuputModes
+{   CV = 0,
+    CC,
+    NUM_OUTPUTMODES
+};
+
 // moving average sample window length for sensors
 // best to use lengths of 1, 2, 4, or 8 to avoid overflow and optimize division
 const int AVERAGE_WINDOW_MAX = 8;
@@ -136,9 +151,11 @@ class AtverterH : public PicroBoard
     unsigned int raw2mV(int raw); // converts ADC reading to mV voltage scaled by resistor divider
     int raw2mVADC(int raw); // converts ADC reading to mV voltage at ADC
     int raw2mA(int raw); // converts raw ADC current sense output to mA
+    int rawSigned2mA(int raw); // converts raw ADC current sense output to mA
     int raw2degC(int raw); // converts raw ADC current sense output to °C
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
+    int mA2rawSigned(int mA); // converts a mA value to raw 10-bit form centered around 0
   // communications
     void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
   // legacy functions

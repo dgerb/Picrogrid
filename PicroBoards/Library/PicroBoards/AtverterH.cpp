@@ -31,6 +31,7 @@ void AtverterH::setupPinMode() {
 void AtverterH::initializeSensors(int avgWindowLength) {
   _averageWindow = avgWindowLength;
   for (int n = 0; n < _averageWindow; n++) {
+    updateVCC();
     updateVISensors();
     updateTSensors();
   }
@@ -83,6 +84,7 @@ void AtverterH::setDutyCycleFloat(float dutyCycleFloat) {
 }
 
 // get the duty cycle as a int percentage (0-100)
+// note that the duty cycle is referenced to side 1; side 2 duty = 100 - getDutyCycle()
 int AtverterH::getDutyCycle() {
   return _dutyCycle;
 }
@@ -254,10 +256,16 @@ int AtverterH::raw2mVADC(int raw) {
 //  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
 //  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
 int AtverterH::raw2mA(int raw) {
+  return rawSigned2mA(raw-512);
+}
+
+// converts a raw 10-bit analog reading centered on zero (-512 to 512) to a mA reading (-5000 to 5000)
+//  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
+//  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
+int AtverterH::rawSigned2mA(int raw) {
   long rawL = (long)raw;
   // (analogRead-512) * VCC/1024 * 1/sensitivity = (analogRead-512) * VCC/1024 * 1000/333
-  return (rawL-512)*getVCC()*3/1024;
-  // return (rawL-512)*1875/128;
+  return rawL*getVCC()*3/1024;
 }
 
 // converts a raw 10-bit analog reading (0-1023) to a °C reading (0-100)
@@ -280,16 +288,20 @@ int AtverterH::raw2degC(int raw) {
 
 // converts a mV value (0-65000) to raw 10-bit form (0-1023)
 int AtverterH::mV2raw(unsigned int mV) { // mV * 10k/(10k+120k) * 1024/VCC
-  Serial.println(mV);
   long temp = (long)mV * 79 / getVCC();
-  Serial.println(temp);
   return (int)(temp);
 }
 
 // converts a mA value (-5000 to 5000) to raw 10-bit form (0-1023)
 int AtverterH::mA2raw(int mA) {
   // mA * sensitivity * 1024/VCC + 512 = mA * 333/1000 * 1024/VCC + 512
-  long temp = (long)mA*341/getVCC() + 512;
+  return mA2rawSigned(mA) + 512;
+}
+
+// converts a mA value (-5000 to 5000) to raw 10-bit form centered around 0 (-512 to 512)
+int AtverterH::mA2rawSigned(int mA) {
+  // mA * sensitivity * 1024/VCC = mA * 333/1000 * 1024/VCC
+  long temp = (long)mA*341/getVCC();
   return (int)temp;
 }
 
@@ -350,7 +362,7 @@ void AtverterH::shutdownGates() {
 
 // returns true if the gate shutdown signal is currently latched
 bool AtverterH::isGateShutdown() {
-  return analogRead(GATESD_PIN);
+  return !digitalRead(GATESD_PIN);
 }
 
 // sets the upper current shutoff limit in mA
