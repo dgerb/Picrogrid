@@ -38,9 +38,20 @@
 #include <AtverterH.h>
 AtverterH atverter;
 
-const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
+const int DCDCMODE = BUCKBOOST; // BUCK, BOOST, BUCKBOOST
 const int VLIMDEFAULT = 15000; // default voltage limit setting in mV
-const int ILIMDEFAULT = 1500; // default current limit setting in mA
+const int ILIMDEFAULT = 2500; // default current limit setting in mA
+
+// discrete compensator coefficients
+// you may want to customize this for your specific input/output voltage/current operating points
+
+// uncomment for BUCKBOOST:
+int compNum [] = {2, 0};
+int compDen [] = {8, -8};
+
+// // uncomment for BUCK or BOOST:
+// int compNum [] = {8, 0};
+// int compDen [] = {8, -8};
 
 int vLim = 0; // reference output voltage setpoint (raw 0-1023)
 int iLim = 1024; // current limit (raw 0-1023)
@@ -49,11 +60,6 @@ int outputMode = CV; // constant voltage (CV) or constant current (CC) mode fini
 
 int compIn [] = {0, 0, 0}; // must be equal or longer than compNum
 int compOut [] = {0, 0, 0}; // must be equal or longer than compDen
-
-// discrete compensator coefficients
-// you may want to customize this for your DCDC Mode and input/output operating points
-int compNum [] = {8, 0};
-int compDen [] = {8, -8};
 
 int gradDescCount = 0;
 

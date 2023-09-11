@@ -149,7 +149,7 @@ if CONVERTER == 'buck':
 elif CONVERTER == 'boost':
     Gcomp = 1/(s*tdelay)
 elif CONVERTER == 'buckboost':
-    Gcomp = 1/(s*tdelay)
+    Gcomp = 0.2/(s*tdelay)
 # compensated loop gain = uncompensated loop gain * compensator gain
 GloopC = ct.minreal(GloopUC*Gcomp)
 
