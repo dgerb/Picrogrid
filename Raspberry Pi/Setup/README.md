@@ -46,11 +46,11 @@ git clone https://github.com/dgerb/Picrogrid.git
 
 Run the single pi basic setup script with the command:
   
-~/Picrogrid/Setup/SinglePiSetup.sh
+~/Picrogrid/Raspberry\ Pi/Setup/SinglePiSetup.sh
 
 To flash the bootloader, use the command:
   
-~/Picrogrid/Setup/AtverterSetup.sh
+~/Picrogrid/Raspberry\ Pi/Setup/AtverterSetup.sh
 
 You can now program the Atverter with the USB TTL FTDI cable. This Pi can be used initialize future Atverters. To do so, you just need to run the AtverterSetup script.
 
