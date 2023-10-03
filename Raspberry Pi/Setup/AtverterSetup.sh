@@ -10,4 +10,4 @@ sudo avrdude -c linuxgpio -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -
 # found on https://github.com/Optiboot/optiboot, optiboot/optiboot/bootloaders/optiboot/optiboot_atmega328.hex
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
 
-sudo avrdude -c linuxgpio -p atmega328p -v -U flash:w:/home/pi/PicrogridEducational/Setup/optiboot_atmega328.hex:i
+sudo avrdude -c linuxgpio -p atmega328p -v -U flash:w:/home/pi/Picrogrid/Raspberry\ Pi/Setup/optiboot_atmega328.hex:i
