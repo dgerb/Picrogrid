@@ -44,7 +44,7 @@ rm -fr avrdude-6.2 avrdude-6.2.tar.gz
 #  miso  = 9;
 #;
 
-sudo cp ~/PicrogridEducational/Setup/avrdude.conf /usr/local/etc/avrdude.conf
+sudo cp ~/Picrogrid/Setup/avrdude.conf /usr/local/etc/avrdude.conf
 
 # Midpoint Test
 
