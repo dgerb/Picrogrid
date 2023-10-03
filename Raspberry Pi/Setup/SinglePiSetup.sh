@@ -8,10 +8,7 @@
 # if you haven't already, update/upgrade apt:
     # sudo apt update
     # sudo apt upgrade
-# for setting hostname, do not use underscores
-# read -p "Enter new hostname: "
-# sudo raspi-config nonint do_hostname $REPLY # changes hostname to script setting
-# echo "pi:gromosapien" | sudo chpasswd
+
 sudo apt install -y python3-pip
 sudo timedatectl set-timezone America/Los_Angeles
 
@@ -33,7 +30,9 @@ rm -fr avrdude-6.2 avrdude-6.2.tar.gz
 
 # Here we copy in a pre-configured version of avrdude.conf
 # The other method is to sudo nano /usr/local/etc/avrdude.conf
-# and look for "linuxgpio", then uncomment and enter pin numbers:
+# and look for "linuxgpio", then uncomment and enter pin numbers,
+# where reset pin depends on the board's reset jumper:
+
 #programmer
 #  id    = "linuxgpio";
 #  desc  = "Use the Linux sysfs interface to bitbang GPIO lines";
@@ -44,7 +43,7 @@ rm -fr avrdude-6.2 avrdude-6.2.tar.gz
 #  miso  = 9;
 #;
 
-sudo cp ~/Picrogrid/Setup/avrdude.conf /usr/local/etc/avrdude.conf
+sudo cp "~/Picrogrid/Raspberry Pi/Setup/avrdude.conf" /usr/local/etc/avrdude.conf
 
 # Midpoint Test
 
