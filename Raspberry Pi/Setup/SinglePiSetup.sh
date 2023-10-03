@@ -43,7 +43,7 @@ rm -fr avrdude-6.2 avrdude-6.2.tar.gz
 #  miso  = 9;
 #;
 
-sudo cp "~/Picrogrid/Raspberry Pi/Setup/avrdude.conf" /usr/local/etc/avrdude.conf
+sudo cp ~/Picrogrid/Raspberry\ Pi/Setup/avrdude.conf /usr/local/etc/avrdude.conf
 
 # Midpoint Test
 
