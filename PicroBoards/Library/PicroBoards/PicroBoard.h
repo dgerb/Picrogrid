@@ -42,7 +42,7 @@ class PicroBoard
     void respondToMaster(int receiveProtocol); // responds to the raspberry Pi
     char * getTXBuffer(int commIndex); // get a pointer to the indexed stored transmit buffer
     // Communication functions for UART
-    void startUART(int baud); // start serial communications
+    void startUART(long baud); // start serial communications
     void startUART(); // start serial communications
     void readUART(); // read in from the UART buffer and store it, and parse it if \n detected
     char * getRXBufferUART(); // get a pointer to the stored UART receive buffer

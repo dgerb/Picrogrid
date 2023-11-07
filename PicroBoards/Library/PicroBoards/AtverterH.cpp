@@ -7,6 +7,11 @@
 #include "AtverterH.h"
 
 AtverterH::AtverterH() {
+  setupPinMode();
+  shutdownGates();
+  initializeSensors();
+  setCurrentShutdown(6500); // set default current shutdown above 5A plus ripple
+  setThermalShutdown(80); // set thermal shutdown decently high
 }
 
 // sets up the pin mode for all AtverterH pins
@@ -30,8 +35,8 @@ void AtverterH::setupPinMode() {
 // initialize sensor average array to sensor read
 void AtverterH::initializeSensors(int avgWindowLength) {
   _averageWindow = avgWindowLength;
+  updateVCC();
   for (int n = 0; n < _averageWindow; n++) {
-    updateVCC();
     updateVISensors();
     updateTSensors();
   }
@@ -143,6 +148,9 @@ void AtverterH::updateVCC() {
   for (int n = 0; n < avgLength; n++)
     accumulator = accumulator + readVCC();
   _vcc = accumulator/avgLength;
+  if (_vcc < 4950) { // readVCC() might measure ~4500 mV if connected via USB
+    _vcc = 5000; // to avoid incorrect USB VCC, set to approximate supply output voltage 
+  }
 }
 
 void AtverterH::updateTSensors() {
@@ -390,6 +398,86 @@ void AtverterH::setThermalShutdown(int temperature_C) {
 void AtverterH::checkThermalShutdown() {
   if (getT1() > _thermalLimitC || getT2() > _thermalLimitC)
     shutdownGates();
+}
+
+// Compensation for Classical Feedback ---------------------------------------
+
+// set discrete compensator coefficients
+// must specify size of numerator and denominator due to how array pointers are passed to functions
+void AtverterH::setComp(int num[], int den[], int numSize, int denSize) {
+  _compNum = num;
+  _compDen = den;
+  _compNumSize = numSize;
+  _compDenSize = denSize;
+}
+
+// update past compensator inputs and outputs
+// must do this even if using gradient descent for smooth transition to classical feedback
+void AtverterH::updateCompPast(int inputNow) {
+// update array of past compensator inputs
+  for (int n = _compNumSize - 1; n > 0; n--) {
+    _compIn[n] = _compIn[n-1];
+  }
+  _compIn[0] = inputNow; // set the current compensator input
+  // update array of past compensator outputs
+  for (int n = _compDenSize - 1; n > 0; n--) {
+    _compOut[n] = _compOut[n-1];
+  }
+}
+
+// returns compensator output for classical feedback discrete compensation
+// usage: compNum = {A, B, C}, compDen = {D, E, F}, x = compIn, y = compOut
+//   D*y[n] + E*y[n-1] + F*y[n-2] = A*x[n] + B*x[n-1] + C*x[n-2]
+//   y[n] = (A*x[n] + B*x[n-1] + C*x[n-2] - E*y[n-1] - F*y[n-2])/D
+long AtverterH::calculateCompOut() {
+  // accumulate compensator weighted input terms via addition
+  long compAcc = 0;
+  for (int n = 0; n < _compNumSize; n++) {
+    compAcc = compAcc + _compIn[n]*_compNum[n];
+  }
+  // accumulate compensator weighted past output terms via subtraction
+  for (int n = 1; n < _compDenSize; n++) {
+    compAcc = compAcc - _compOut[n]*_compDen[n];
+  }
+  compAcc = compAcc/_compDen[0]; // divide by the first denominator coefficient
+  _compOut[0] = compAcc; // the compensator output, y[n]
+  return compAcc;
+}
+
+// resets the compensator past values when switching between CV and CC
+void AtverterH::resetComp() {
+  // reset array of past compensator inputs
+  for (int n = 0; n < _compNumSize; n++) {
+    _compIn[n] = 0;
+  }
+  // reset array of past compensator outputs
+  for (int n = 0; n < _compDenSize; n++) {
+    _compOut[n] = getDutyCycle()*10; // backward convert dutyRaw = duty*1024/100 = duty*10
+  }
+}
+
+// Gradient Descent ----------------------------------------------------------
+
+// set the gradient descent counter overflow to control step speed
+void AtverterH::setGradDescCountMax(int counterMax) {
+  _gradDescCountMax = counterMax;
+  _gradDescCount = 0;
+}
+
+// steps duty cycle based on the sign of the error
+void AtverterH::gradDescStep(int error) {
+  _gradDescCount++; // use a counter to control the speed of gradient descent
+  if (_gradDescCount > _gradDescCountMax) {
+    _gradDescCount = 0;
+    long duty = getDutyCycle();
+    // store the duty cycle value to compensator output array in case we switch to classical feedback
+    _compOut[0] = (int)(duty*1024/100);
+    if (error > 0) { // ascend or descend by 1% duty cycle depending on the sign of the error
+      setDutyCycle((int)(duty + 1));
+    } else if (error < 0) {
+      setDutyCycle((int)(duty - 1));
+    }
+  }
 }
 
 // Communications ------------------------------------------------------------

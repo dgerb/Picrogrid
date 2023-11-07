@@ -53,13 +53,13 @@ char * PicroBoard::getTXBuffer(int commIndex) {
 }
 
 // start serial communications
-void PicroBoard::startUART(int baud) {
+void PicroBoard::startUART(long baud) {
   Serial.begin(baud);
 }
 
 // start serial communications
 void PicroBoard::startUART() {
-  startUART(9600);
+  startUART(38400);
 }
 
 // read in from the UART buffer and store it, returns true if \n detected

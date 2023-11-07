@@ -15,16 +15,16 @@ from sympy.physics.control.lti import TransferFunction
 import sympy.physics.control.control_plots as cp
 
 # setting flags
-CONVERTER = 'buckboost' # 'buck', 'boost', 'buckboost'
-MODE = 'CV' # 'CV', 'CC'
+CONVERTER = 'buck' # 'buck', 'boost', 'buckboost'
+MODE = 'CC' # 'CV', 'CC'
 USEDELAY = True
-STEPGAIN = 4 # multiplier for default step response to 1*u(t)
+STEPGAIN = 1 # multiplier for default step response to 1*u(t)
 
 # set these values for the system
 tdelay = 1e-3 # digital loop update interrupt interval
-VO = 15.0 # desired output voltage (i.e. reference voltage)
+VO = 12.0 # desired output voltage (i.e. reference voltage)
 IO = 1 # large signal output current operating point
-VI = 12.0 # large signal input voltage operating point
+VI = 16.0 # large signal input voltage operating point
 C = 100e-6 # output capacitor
 L = 47e-6 # main inductor
 

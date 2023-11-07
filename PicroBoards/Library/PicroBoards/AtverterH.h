@@ -66,10 +66,12 @@ enum DCDCModes
     NUM_DCDCMODES
 };
 
-// output modes enumerator for convenience
+// output modes enumerator for convenience and bookkeeping
 enum OuputModes
-{   CV = 0,
-    CC,
+{   CV1 = 0, // constant voltage control at port 1
+    CC1, // constant current control at port 1
+    CV2, // constant voltage control at port 2
+    CC2, // constant current control at port 2
     NUM_OUTPUTMODES
 };
 
@@ -156,21 +158,41 @@ class AtverterH : public PicroBoard
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
     int mA2rawSigned(int mA); // converts a mA value to raw 10-bit form centered around 0
+  // compensation for classical feedback
+    void setComp(int num[], int den[], int numSize, int denSize); // set discrete compensator coefficients
+    void updateCompPast(int inputNow); // update past compensator inputs and outputs
+    long calculateCompOut(); // returns compensator output for classical feedback discrete compensation
+    void resetComp(); // resets the compensator past values when switching between CV and CC
+  // gradient descent functions
+    void setGradDescCountMax(int counterMax); // set the gradient descent counter overflow to control speed
+    void gradDescStep(int error); // steps duty cycle based on the sign of the error 
   // communications
     void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
   // legacy functions
     void startPWM(); // replaced by enableGateDrivers()
     void initializePWMTimer(); // not needed with FastPWM library
   private:
+    // switch operation
     int _dutyCycle = 50; // the most recently set duty cycle (0 to 100)
-    long _bootstrapCounter; // counter to refresh the gate driver bootstrap caps
+    long _bootstrapCounter = 0; // counter to refresh the gate driver bootstrap caps
     long _bootstrapCounterMax; // reset value for bootstrap counter
+    // sensors and averaging
     int _averageWindow = 4; // average window length (< AVERAGE_WINDOW_MAX)
     int _sensorAverages[NUM_SENSORS]; // array raw sensor moving averages
     int _sensorPast[AVERAGE_WINDOW_MAX][NUM_SENSORS]; // array raw sensor moving averages
     int _vcc; // stored value of vcc measured at start up
     int _currentLimitAmplitudeRaw = 375; // the upper raw (0 to 1023) current limit before gate shutoff
     int _thermalLimitC = 170; // the upper °C thermal limit before gate shutoff
+    // convenience variables for controls and compensation
+    int _compIn[8] = {0,0,0,0,0,0,0,0}; // compensator input values (raw 0-1023), current to oldest 
+    int _compOut[8] = {0,0,0,0,0,0,0,0}; // compensator output values (raw 0-1023), current to oldest 
+    int *_compNum; // discrete compensation difference equation numerator
+    int *_compDen; // discrete compensation difference equation denominator
+    int _compNumSize; // length of compensator numerator
+    int _compDenSize; // length of compensator denominator
+    int _gradDescCount = 0; // counter for gradient descent contorllers to control step speed
+    int _gradDescCountMax = 4; // gradient descent counter overflow setting to control step speed
+    // functions
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value
 };
 
