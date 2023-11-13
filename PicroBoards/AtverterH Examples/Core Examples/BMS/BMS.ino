@@ -395,7 +395,9 @@ void setIRefs(int vBat) {
 
 // serial command interpretation function
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
-  if (strcmp(command, "WMODE") == 0) {
+  if (strcmp(command, "RFN") == 0) {
+    readFileName(value, receiveProtocol);
+  } else if (strcmp(command, "WMODE") == 0) {
     writeMODE(value, receiveProtocol);
   } else if (strcmp(command, "RMODE") == 0) {
     readMODE(value, receiveProtocol);
@@ -416,6 +418,12 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   } else if (strcmp(command, "WRCNT") == 0) {
     resetRCNT(value, receiveProtocol);
   }
+}
+
+// outputs the file name to serial
+void readFileName(const char* valueStr, int receiveProtocol) {
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WFN:%s", "BMS.ino");
+  atverter.respondToMaster(receiveProtocol);
 }
 
 // sets the BMS operation mode from a serial command string: FCHG, FDIS, FORM, HOLD, FCS

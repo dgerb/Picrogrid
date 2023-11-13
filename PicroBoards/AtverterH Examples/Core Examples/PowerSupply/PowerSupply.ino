@@ -157,7 +157,9 @@ void controlUpdate(void)
 
 // serial command interpretation function
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
-  if (strcmp(command, "WVLIM") == 0) {
+  if (strcmp(command, "RFN") == 0) {
+    readFileName(value, receiveProtocol);
+  } else if (strcmp(command, "WVLIM") == 0) {
     writeVLIM(value, receiveProtocol);
   } else if (strcmp(command, "RVLIM") == 0) {
     readVLIM(value, receiveProtocol);
@@ -170,6 +172,12 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   } else if (strcmp(command, "RILIM") == 0) {
     readILIM(value, receiveProtocol);
   }
+}
+
+// outputs the file name to serial
+void readFileName(const char* valueStr, int receiveProtocol) {
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WFN:%s", "PowerSupply.ino");
+  atverter.respondToMaster(receiveProtocol);
 }
 
 // sets the reference output voltage (mV) set point from a serial command

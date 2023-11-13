@@ -62,25 +62,25 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   }
 }
 
-// sample function that responds to RFN
+// sample function that responds to RFN (file name)
 void readFileName(const char* valueStr, int receiveProtocol) {
   sprintf(atverter.getTXBuffer(receiveProtocol), "WFN:%d%s", 3, "_Serial.ino");
   atverter.respondToMaster(receiveProtocol);
 }
 
-// sample function that responds to RAUT
+// sample function that responds to RAUT (author)
 void readAuthor(const char* valueStr, int receiveProtocol) {
   sprintf(atverter.getTXBuffer(receiveProtocol), "WAUT:%s", "Daniel Gerber");
   atverter.respondToMaster(receiveProtocol);
 }
 
-// sample function that responds to RHM, reports a char array stored in this program
+// sample function that responds to RHM (hello message), reports a char array stored in this program
 void readHelloMessage(const char* valueStr, int receiveProtocol) {
   sprintf(atverter.getTXBuffer(receiveProtocol), "WHM:%s", helloMessage);
   atverter.respondToMaster(receiveProtocol);
 }
 
-// sample function that responds to WHM, writes to a char array stored in this program
+// sample function that responds to WHM (hello message), writes to a char array stored in this program
 void writeHelloMessage(const char* valueStr, int receiveProtocol) {
   strcpy(helloMessage, valueStr);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WHM:=%s", helloMessage);
