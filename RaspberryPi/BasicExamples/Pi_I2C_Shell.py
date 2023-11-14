@@ -10,6 +10,10 @@ def StringToBytes(val):
         retVal.append(ord(c))
     return retVal
 
+print("what is the I2C address? (0 to 127)")
+addrStr = input(">>>>   ")
+address = int(addrStr)
+
 print("Remember to make sure I2C is enabled in raspi-config.")
 
 # Give the I2C device time to settle

@@ -111,6 +111,9 @@ void setup() {
   // set up UART command support
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
+  ReceiveEventI2C receiveEvent = [] (int howMany) {atverter.receiveEventI2C(howMany);};
+  RequestEventI2C requestEvent = [] () {atverter.requestEventI2C();};
+  atverter.startI2C(2, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
   // initialize voltage and current limits to default values above
   vBusRef = atverter.mV2raw(VBUSDEFAULT);

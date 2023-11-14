@@ -70,6 +70,9 @@ void setup() {
   // set up UART command support
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
+  ReceiveEventI2C receiveEvent = [] (int howMany) {atverter.receiveEventI2C(howMany);};
+  RequestEventI2C requestEvent = [] () {atverter.requestEventI2C();};
+  atverter.startI2C(3, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
   // set discrete compensator coefficients for use in classical feedback compensation
   atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
