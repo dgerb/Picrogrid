@@ -1,3 +1,4 @@
+
 /*
   PowerSupply
 
@@ -50,7 +51,7 @@ const int ILIMDEFAULT = 2500; // default current limit setting in mA
 // int compDen [] = {8, -8};
 
 // // uncomment for BUCK or BOOST:
-int compNum [] = {8, 0};
+int compNum [] = {2, 0};
 int compDen [] = {8, -8};
 
 int vLim = 0; // reference output voltage setpoint (raw 0-1023)
@@ -79,7 +80,7 @@ void setup() {
 
   // initialize voltage and current limits to default values above
   vLim = atverter.mV2raw(VLIMDEFAULT); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
-  iLim = atverter.mA2rawSigned(ILIMDEFAULT);
+  iLim = atverter.mA2raw(ILIMDEFAULT);
   // apply holds on either side of the Atverter based on DC-DC operation mode
   switch(DCDCMODE) {
     case BUCK:
@@ -108,10 +109,9 @@ void controlUpdate(void)
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
   int vOut = atverter.getRawV2();
-  int iOut = -1*(atverter.getRawI2() - 512);
-    // normally raw current is 0-1024. here we center it around zero to be -512 to 512
-    // and we multiply by -1, since positive current is technically defined as current into the terminal
-    // but here, current out of the terminal is easier to work with 
+  int iOut = -1*(atverter.getRawI2());
+    // multiply by -1, since positive current is technically defined as current into the terminal
+    // but here, current out of the terminal is easier to work with and understand
 
   // check conditions to switch between constant voltage and constant current states
   if (outputMode == CV2 && iOut > iLim) { // switch to constant current if output current exceeds current limit
@@ -138,7 +138,8 @@ void controlUpdate(void)
 
   // 0.5A-5A output: classical feedback voltage mode discrete compensation
   // 0A-0.5A output: slow gradient descent mode
-  bool isClassicalFB = atverter.getRawI2() < 512 - 51 || atverter.getRawI2() > 512 + 51;
+  bool isClassicalFB = atverter.getRawI2() < -51 || atverter.getRawI2() > 51;
+  // bool isClassicalFB = atverter.getRawI2() < -51 || atverter.getRawI2() > 51;
 
   if(isClassicalFB) { // classical feedback voltage mode discrete compensation
     // calculate the compensator output based on past values and the numerator and demoninator
@@ -222,14 +223,14 @@ void readDroopRes(const char* valueStr, int receiveProtocol) {
 // sets the current limit (mA) from a serial command
 void writeILIM(const char* valueStr, int receiveProtocol) {
   int temp = atoi(valueStr);
-  iLim = atverter.mA2rawSigned(temp); // convert the mA value to a raw 0-1023 form
+  iLim = atverter.mA2raw(temp); // convert the mA value to a raw 0-1023 form
   sprintf(atverter.getTXBuffer(receiveProtocol), "WILIM:=%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
 
 // gets the current limit (mA) and outputs to serial
 void readILIM(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.rawSigned2mA(iLim);
+  unsigned int temp = atverter.raw2mA(iLim);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WILIM:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }

@@ -58,6 +58,26 @@ enum SensorIndex
     NUM_SENSORS
 };
 
+// moving average sample window length for sensors. Best to use powers of two so as to optimize division
+//  use this before #include to override in the .ino file: #define XXX YY
+//  e.g. to set current averaging window to size 32: #define SENSOR_I_WINDOW_MAX 32
+#ifndef SENSOR_V_WINDOW_MAX
+#define SENSOR_V_WINDOW_MAX 16
+#endif
+#ifndef SENSOR_I_WINDOW_MAX
+#define SENSOR_I_WINDOW_MAX 32
+#endif
+#ifndef SENSOR_T_WINDOW_MAX
+#define SENSOR_T_WINDOW_MAX 4
+#endif
+constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
+  SENSOR_V_WINDOW_MAX,
+  SENSOR_V_WINDOW_MAX,
+  SENSOR_I_WINDOW_MAX,
+  SENSOR_I_WINDOW_MAX,
+  SENSOR_T_WINDOW_MAX,
+  SENSOR_T_WINDOW_MAX};
+
 // DC-DC operation modes enumerator for convenience
 enum DCDCModes
 {   BUCK = 0,
@@ -75,9 +95,15 @@ enum OuputModes
     NUM_OUTPUTMODES
 };
 
-// moving average sample window length for sensors
-// best to use lengths of 1, 2, 4, or 8 to avoid overflow and optimize division
-const int AVERAGE_WINDOW_MAX = 8;
+// shutdown error codes for convenience and bookkeeping. user-defined codes start at 4
+enum ShutdownCodes
+{
+  HARDWARE = 0,
+  SOFTWAREUNLABELED = 1,
+  OVERCURRENT = 2,
+  OVERTEMPERATURE = 3,
+  NUM_PRESETCODES
+};
 
 // NCP15WF104F03RC thermistor look up table (ADC value, temperature °C)
 const int TTABLE[14][2] = {
@@ -144,7 +170,9 @@ class AtverterH : public PicroBoard
     void setLEDG(int state); // sets green LED to HIGH or LOW
   // safety
     void shutdownGates(); // immediately triggers the gate shutdown
+    void shutdownGates(int errorCode); // immediately triggers the gate shutdown
     bool isGateShutdown(); // returns true if the gate shutdown signal is currently latched
+    int getShutdownCode(); // returns the appropriate shutdown code, or -1 if gates not shutdown
     void setCurrentShutdown(int current); // sets the upper current shutoff limit in mA
     void checkCurrentShutdown(); // checks if last sensed current is greater than current limit
     void setThermalShutdown(int temperature); // sets the upper temperature shutoff in °C
@@ -153,11 +181,9 @@ class AtverterH : public PicroBoard
     unsigned int raw2mV(int raw); // converts ADC reading to mV voltage scaled by resistor divider
     int raw2mVADC(int raw); // converts ADC reading to mV voltage at ADC
     int raw2mA(int raw); // converts raw ADC current sense output to mA
-    int rawSigned2mA(int raw); // converts raw ADC current sense output to mA
     int raw2degC(int raw); // converts raw ADC current sense output to °C
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
-    int mA2rawSigned(int mA); // converts a mA value to raw 10-bit form centered around 0
   // compensation for classical feedback
     void setComp(int num[], int den[], int numSize, int denSize); // set discrete compensator coefficients
     void updateCompPast(int inputNow); // update past compensator inputs and outputs
@@ -165,6 +191,7 @@ class AtverterH : public PicroBoard
     void resetComp(); // resets the compensator past values when switching between CV and CC
   // gradient descent functions
     void setGradDescCountMax(int counterMax); // set the gradient descent counter overflow to control speed
+    void triggerGradDescStep(); // set gradient descent to step next call to gradDescStep()
     void gradDescStep(int error); // steps duty cycle based on the sign of the error 
   // communications
     void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
@@ -177,10 +204,16 @@ class AtverterH : public PicroBoard
     long _bootstrapCounter = 0; // counter to refresh the gate driver bootstrap caps
     long _bootstrapCounterMax; // reset value for bootstrap counter
     // sensors and averaging
-    int _averageWindow = 4; // average window length (< AVERAGE_WINDOW_MAX)
     int _sensorAverages[NUM_SENSORS]; // array raw sensor moving averages
-    int _sensorPast[AVERAGE_WINDOW_MAX][NUM_SENSORS]; // array raw sensor moving averages
-    int _vcc; // stored value of vcc measured at start up
+    long _sensorAccumulators[NUM_SENSORS];
+    int _sensorIterators[NUM_SENSORS];
+    int _sensorPastV1[AVERAGE_WINDOW_MAX[V1_INDEX]]; // array raw sensor moving averages
+    int _sensorPastV2[AVERAGE_WINDOW_MAX[V2_INDEX]]; // array raw sensor moving averages
+    int _sensorPastI1[AVERAGE_WINDOW_MAX[I1_INDEX]]; // array raw sensor moving averages
+    int _sensorPastI2[AVERAGE_WINDOW_MAX[I2_INDEX]]; // array raw sensor moving averages
+    int _sensorPastT1[AVERAGE_WINDOW_MAX[T1_INDEX]]; // array raw sensor moving averages
+    int _sensorPastT2[AVERAGE_WINDOW_MAX[T2_INDEX]]; // array raw sensor moving averages
+    int _vcc; // stored value of vcc measured at start up and/or periodically
     int _currentLimitAmplitudeRaw = 375; // the upper raw (0 to 1023) current limit before gate shutoff
     int _thermalLimitC = 170; // the upper °C thermal limit before gate shutoff
     // convenience variables for controls and compensation
@@ -192,6 +225,8 @@ class AtverterH : public PicroBoard
     int _compDenSize; // length of compensator denominator
     int _gradDescCount = 0; // counter for gradient descent contorllers to control step speed
     int _gradDescCountMax = 4; // gradient descent counter overflow setting to control step speed
+    // diagnostics
+    int _shutdownCode = 0;
     // functions
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value
 };

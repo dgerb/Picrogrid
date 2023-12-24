@@ -85,7 +85,7 @@ void controlUpdate(void)
 
   // 0.5A-5A output: classical feedback voltage mode discrete compensation
   // 0A-0.5A output: slow gradient descent mode
-  bool isClassicalFB = atverter.getRawI2() < 512 - 51 || atverter.getRawI2() > 512 + 51;
+  bool isClassicalFB = atverter.getRawI2() < -51 || atverter.getRawI2() > 51;
 
   // set duty cycle, depending on whether in classical feedback or gradient descent mode
   if(isClassicalFB) { // classical feedback voltage mode discrete compensation

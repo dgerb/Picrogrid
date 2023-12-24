@@ -23,11 +23,12 @@ void setup() {
   atverterH.initializeSensors(); // set filtered sensor values to initial reading
   atverterH.setCurrentShutdown(6000); // set gate shutdown at 6A peak current 
   atverterH.setThermalShutdown(60); // set gate shutdown at 60°C temperature
-  atverterH.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
-  atverterH.setDutyCycle(50);
-  atverterH.startPWM();
+  atverterH.setDutyCycle(50); // set the initial duty cycle at something reasonable
 
-  Serial.begin(9600); // in this example, send messages to computer via basic UART serial
+  atverterH.startPWM(); // usually you want to start the PWM before the interrupt timer is intialized
+  atverterH.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
+
+  Serial.begin(38400); // in this example, send messages to computer via basic UART serial
 }
 
 void loop() { } // we don't use loop() because it does not loop at a fixed period

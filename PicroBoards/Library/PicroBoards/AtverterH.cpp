@@ -32,19 +32,17 @@ void AtverterH::setupPinMode() {
   pinMode(T2_PIN, INPUT);
 }
 
-// initialize sensor average array to sensor read
-void AtverterH::initializeSensors(int avgWindowLength) {
-  _averageWindow = avgWindowLength;
+// // initialize sensor average array to sensor read
+void AtverterH::initializeSensors() {
   updateVCC();
-  for (int n = 0; n < _averageWindow; n++) {
+  int max = 0;
+  for (int n = 0; n < NUM_SENSORS; n++)
+    if (AVERAGE_WINDOW_MAX[n] > max)
+      max = AVERAGE_WINDOW_MAX[n];
+  for (int n = 0; n < max; n++) {
     updateVISensors();
     updateTSensors();
   }
-}
-
-// initialize sensor average array to sensor read
-void AtverterH::initializeSensors() {
-  initializeSensors(4); // default average window length 4
 }
 
 // initializes the periodic control timer
@@ -53,7 +51,10 @@ void AtverterH::initializeSensors() {
 void AtverterH::initializeInterruptTimer(long periodus, void (*interruptFunction)(void)) {
   Timer1.initialize(periodus); // arg: period in microseconds
   Timer1.attachInterrupt(interruptFunction); // arg: interrupt function to call
-  _bootstrapCounterMax = 10000/periodus; // refresh bootstrap capacitors every 10ms
+  // _bootstrapCounterMax = 10000/periodus; // refresh bootstrap capacitors every 10ms
+  _bootstrapCounterMax = 1000/periodus; // refresh bootstrap capacitors every 10ms
+  if (_bootstrapCounterMax < 1)
+    _bootstrapCounterMax = 1;
   refreshBootstrap();
 }
 
@@ -62,9 +63,10 @@ void AtverterH::enableGateDrivers() {
   digitalWrite(PRORESET_PIN, HIGH);
   delayMicroseconds(500);
   digitalWrite(PRORESET_PIN, LOW);
+  _shutdownCode = 0; // reset shutdown code (i.e. set to "hardware" shutdown)
 }
 
-// legacy; replaced by enableGateDrivers()
+// legacy; replaced by enableGateDrivers(), but kept for user readability
 void AtverterH::startPWM() {
   enableGateDrivers();
 }
@@ -104,7 +106,7 @@ float AtverterH::getDutyCycleFloat() {
 // check bootstrap counter to see if need to refresh caps
 void AtverterH::checkBootstrapRefresh() {
   _bootstrapCounter--;
-  if (_bootstrapCounter < 0) {
+  if (_bootstrapCounter <= 0) {
     refreshBootstrap();
   }
 }
@@ -159,22 +161,49 @@ void AtverterH::updateTSensors() {
 }
 
 void AtverterH::updateVISensors() {
-  // analog read measured at 116 microseconds, updateSensorRaw adds negligable time
+  // analogRead() measured at 116 microseconds, updateSensorRaw adds negligable time
   // total updateVISensors time is measured at 456 microseconds
   updateSensorRaw(V1_INDEX, analogReadFast(V1_PIN));
   updateSensorRaw(V2_INDEX, analogReadFast(V2_PIN));
-  updateSensorRaw(I1_INDEX, analogReadFast(I1_PIN));
-  updateSensorRaw(I2_INDEX, analogReadFast(I2_PIN));
+  updateSensorRaw(I1_INDEX, analogReadFast(I1_PIN) - 512);
+  updateSensorRaw(I2_INDEX, analogReadFast(I2_PIN) - 512);
 }
 
 void AtverterH::updateSensorRaw(int index, int sample) {
-  unsigned int accumulator = sample;
-  for (int n = 1; n < _averageWindow; n++) {
-    _sensorPast[n][index] = _sensorPast[n-1][index];
-    accumulator = accumulator + _sensorPast[n][index];
+  // find correct sensorPast array
+  int * sensorPast;
+  switch (index) {
+    case V1_INDEX:
+      sensorPast = _sensorPastV1;
+      break;
+    case V2_INDEX:
+      sensorPast = _sensorPastV2;
+      break;
+    case I1_INDEX:
+      sensorPast = _sensorPastI1;
+      break;
+    case I2_INDEX:
+      sensorPast = _sensorPastI2;
+      break;
+    case T1_INDEX:
+      sensorPast = _sensorPastT1;
+      break;
+    case T2_INDEX:
+      sensorPast = _sensorPastT2;
+      break;
+    default:
+      return;
   }
-  _sensorPast[0][index] = sample;
-  _sensorAverages[index] = (int)(accumulator/_averageWindow);
+  // subtract oldest value from accumulator, set new value in array, add new value to accumulator
+  _sensorAccumulators[index] -= sensorPast[_sensorIterators[index]];
+  sensorPast[_sensorIterators[index]] = sample;
+  _sensorAccumulators[index] += sensorPast[_sensorIterators[index]];
+  // update sensor average
+  _sensorAverages[index] = (int)(_sensorAccumulators[index]/AVERAGE_WINDOW_MAX[index]);
+  // increment iterator (or return it to zero)
+  _sensorIterators[index] ++;
+  if (_sensorIterators[index] >= AVERAGE_WINDOW_MAX[index])
+    _sensorIterators[index] = 0;
 }
 
 // Raw Sensor Accessor Functions --------------------------------------
@@ -260,17 +289,10 @@ int AtverterH::raw2mVADC(int raw) {
   return (int)(rawL*getVCC()/1024); // analogRead*VCC/1024
 }
 
-// converts a raw 10-bit analog reading (0-1023) to a mA reading (-5000 to 5000)
-//  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
-//  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
-int AtverterH::raw2mA(int raw) {
-  return rawSigned2mA(raw-512);
-}
-
 // converts a raw 10-bit analog reading centered on zero (-512 to 512) to a mA reading (-5000 to 5000)
 //  for MT9221CT-06BR5 current sensor with VCC=5V, sensitivity is 333mV/A, 0A at 2.5V
 //  with variable VCC, sensitivity (mV/mA) is VCC/5000*333/1000, 0A at VCC/2
-int AtverterH::rawSigned2mA(int raw) {
+int AtverterH::raw2mA(int raw) {
   long rawL = (long)raw;
   // (analogRead-512) * VCC/1024 * 1/sensitivity = (analogRead-512) * VCC/1024 * 1000/333
   return rawL*getVCC()*3/1024;
@@ -300,14 +322,8 @@ int AtverterH::mV2raw(unsigned int mV) { // mV * 10k/(10k+120k) * 1024/VCC
   return (int)(temp);
 }
 
-// converts a mA value (-5000 to 5000) to raw 10-bit form (0-1023)
-int AtverterH::mA2raw(int mA) {
-  // mA * sensitivity * 1024/VCC + 512 = mA * 333/1000 * 1024/VCC + 512
-  return mA2rawSigned(mA) + 512;
-}
-
 // converts a mA value (-5000 to 5000) to raw 10-bit form centered around 0 (-512 to 512)
-int AtverterH::mA2rawSigned(int mA) {
+int AtverterH::mA2raw(int mA) {
   // mA * sensitivity * 1024/VCC = mA * 333/1000 * 1024/VCC
   long temp = (long)mA*341/getVCC();
   return (int)temp;
@@ -361,6 +377,12 @@ void AtverterH::setLEDG(int state) {
 
 // immediately triggers the gate shutdown
 void AtverterH::shutdownGates() {
+  shutdownGates(SOFTWAREUNLABELED);
+}
+
+// immediately triggers the gate shutdown
+void AtverterH::shutdownGates(int shutdownCode) {
+  _shutdownCode = shutdownCode;
   pinMode(GATESD_PIN, OUTPUT);
   digitalWrite(GATESD_PIN, LOW);
   delayMicroseconds(10000);
@@ -373,6 +395,14 @@ bool AtverterH::isGateShutdown() {
   return !digitalRead(GATESD_PIN);
 }
 
+// returns the appropriate shutdown code, or -1 if gates not shutdown
+int AtverterH::getShutdownCode() {
+  if (!isGateShutdown())
+    return -1;
+  else
+    return _shutdownCode;
+}
+
 // sets the upper current shutoff limit in mA
 void AtverterH::setCurrentShutdown(int current_mA) {
   long currentL = (long)current_mA;
@@ -382,11 +412,11 @@ void AtverterH::setCurrentShutdown(int current_mA) {
 // checks if last sensed current is greater than current limit
 void AtverterH::checkCurrentShutdown() {
   // this function takes negligable microseconds unless actually shutting down
-  if (_sensorAverages[I1_INDEX] > 512 + _currentLimitAmplitudeRaw
-    || _sensorAverages[I1_INDEX] < 512 - _currentLimitAmplitudeRaw
-    || _sensorAverages[I2_INDEX] > 512 + _currentLimitAmplitudeRaw
-    || _sensorAverages[I2_INDEX] < 512 - _currentLimitAmplitudeRaw)
-    shutdownGates();
+  if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw
+    || _sensorAverages[I1_INDEX] < -_currentLimitAmplitudeRaw
+    || _sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw
+    || _sensorAverages[I2_INDEX] < -_currentLimitAmplitudeRaw)
+    shutdownGates(OVERCURRENT);
 }
 
 // sets the upper temperature shutoff in °C
@@ -397,7 +427,7 @@ void AtverterH::setThermalShutdown(int temperature_C) {
 // checks if last sensed current is greater than thermal limit
 void AtverterH::checkThermalShutdown() {
   if (getT1() > _thermalLimitC || getT2() > _thermalLimitC)
-    shutdownGates();
+    shutdownGates(OVERTEMPERATURE);
 }
 
 // Compensation for Classical Feedback ---------------------------------------
@@ -462,6 +492,11 @@ void AtverterH::resetComp() {
 void AtverterH::setGradDescCountMax(int counterMax) {
   _gradDescCountMax = counterMax;
   _gradDescCount = 0;
+}
+
+// set gradient descent to step next call to gradDescStep()
+void AtverterH::triggerGradDescStep() {
+  _gradDescCount = _gradDescCountMax;
 }
 
 // steps duty cycle based on the sign of the error

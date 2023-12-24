@@ -22,7 +22,7 @@ import csv
 import smbus2
 
 fileName = 'output.csv'
-mpptAddress = 0x01
+solarAddress = 0x01
 bmsAddress = 0x02
 supplyAddress = 0x03
 
@@ -47,13 +47,13 @@ bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
 header = "Year,Month,Day,Hour,Minute,Second," + \
-        "MPPTV1,MPPTI1,MPPTV2,MPPTI2," + \
+        "SolarV1,SolarI1,SolarV2,SolarI2," + \
         "BMSV1,BMSI1,BMSV2,BMSI2," + \
         "SupplyV1,SupplyI1,SupplyV2,SupplyI2"
 print(header)
 with open(fileName, 'w') as the_file:
     the_file.write(header + '\n')
-# addresses = [mpptAddress, bmsAddress, supplyAddress]
+# addresses = [solarAddress, bmsAddress, supplyAddress]
 addresses = [supplyAddress]
 commands = [["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"], \
             ["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"], \

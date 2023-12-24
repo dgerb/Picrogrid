@@ -8,8 +8,8 @@
   DC Bus: Terminal 1: 24V nominal (22-28V allowed), or 48V nominal (44-56V allowed)
   Battery: Terminal 2: 12V (10-14V), 24V (20-28V), 36V (30-42V)
   
-  Test Set-up:
-  DC Bus: Voltage supply attached to terminal 1, set to CV at 24.1V with 3A current limit
+  Test Set-up (grid-following):
+  DC Bus: Voltage supply attached to terminal 1, set to CV at 24V with 3A current limit
   DC Bus: Electronic load attached to terminal 1, is set to CR mode between 15 and 100 ohms
   Battery: Attached to terminal 2 through an Ammeter
 
@@ -62,17 +62,19 @@ const unsigned int VBATMIN = 10000; // min battery voltage in mV
 const int IBATCHGMAX = 3000; // max battery charging current in mA
 const int IBATDISMAX = 5000; // max battery discharging current in mA
 const unsigned int VBUSMAX = 28000; // max bus voltage in FORM mode
+const unsigned int VBUSMIN = 18000; // min bus voltage in FOLLOWCHARGE mode
 
 // default starting values for several BMS variables
 const unsigned int VBUSDEFAULT = 24000; // default nominal bus voltage in mV, must be greater than battery voltage here
-const int ICHGDEFAULT = 1000; // default charging current
+const int ICHGDEFAULT = 300; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
-int bmsMode = HOLD;
+int bmsMode = FOLLOWCHARGE;
 int outputMode = CC2; // CV1, CC1, CV2 or CC2 mode for book keeping
 
 // BMS global variables
 unsigned int vBusRef = 0; // reference terminal 1 voltage setpoint (raw 0-1023); nominal bus voltage
 unsigned int vBusMax = 0; // max bus voltage in FORM mode
+unsigned int vBusMin = 0; // min bus voltage in FOLLOWCHARGE mode
 unsigned int vBatMax = 0; // max battery voltage
 unsigned int vBatMin = 0; // min battery voltage
 unsigned int vBat25 = 0; // 25% battery voltage
@@ -89,6 +91,7 @@ int iBatDisRef = 0; // sliding discharge current limit
 //   = 0 + (iBatDisLim - 0) * ((vBat - vBatMin)/(vBat25 - vBatMin))
 int chgInterpSlope = 0; // interpolation slope for charging
 int disInterpSlope = 0; // interpolation slope for discharging
+int setIRefsCounter = 0;
 
 // global variables for coulomb counting (relevant for SOC calculations)
 long coulombCounter = 0; // coulomb counter (mA-sec)
@@ -118,6 +121,7 @@ void setup() {
   // initialize voltage and current limits to default values above
   vBusRef = atverter.mV2raw(VBUSDEFAULT);
   vBusMax = atverter.mV2raw(VBUSMAX);
+  vBusMin = atverter.mV2raw(VBUSMIN);
 
   // set battery raw voltage thresholds (raw 0-1023)
   int vBatDiff = VBATMAX-VBATMIN;
@@ -127,8 +131,8 @@ void setup() {
   vBat75 = atverter.mV2raw(VBATMAX - vBatDiff/4);
 
   // set raw peak current limits (-512 to 512) to default values
-  iBatChgLim = atverter.mA2rawSigned(ICHGDEFAULT);
-  iBatDisLim = atverter.mA2rawSigned(IDISDEFAULT);
+  iBatChgLim = atverter.mA2raw(ICHGDEFAULT);
+  iBatDisLim = atverter.mA2raw(IDISDEFAULT);
   chgInterpSlope = iBatChgLim/(vBatMax - vBat75);
   disInterpSlope = iBatDisLim/(vBat25 - vBatMin);
 
@@ -159,17 +163,22 @@ void controlUpdate(void)
 
   // get raw voltage and current readings at each port, with attention to sign conventions for current
   int vBat = atverter.getRawV2(); // battery port voltage
-  int iBat = -1*(atverter.getRawI2() - 512); // current into battery (positive)
+  int iBat = -1*(atverter.getRawI2()); // current into battery (positive)
   int vBus = atverter.getRawV1(); // bus port voltage
-  int iBus = -1*(atverter.getRawI1() - 512); // current into bus (positive)
+  int iBus = -1*(atverter.getRawI1()); // current into bus (positive)
 
   int error;
   bool isCharging; // state variable for FORM mode to designate if the battery is currently charging
 
   // update the sub-second raw coulomb counter accumulator
   ccntAccumulator += iBat;
+
   // update sliding reference currents based on the averaged battery voltage measured this cycle
-  setIRefs(vBat);
+  if (setIRefsCounter > 1000) {
+    setIRefs(vBat);
+    setIRefsCounter = 0;
+  } else
+    setIRefsCounter++;
 
   // BMS mode finite state machine, which can switch BMS Modes or Output Modes and designates the appropriate error
 
@@ -184,7 +193,13 @@ void controlUpdate(void)
       atverter.resetComp();
     }
     // Output Mode: determine error based on output mode state
-    if (outputMode == CC2) { // constant current operation
+    if (vBus < vBusMin)  { // if bus voltage falls below min value, we're charging too much; rapid curtail current
+      iBatChgRef = iBatChgRef - 1;
+      if (iBatChgRef < 0)
+        iBatChgRef = 0;
+      error = - iBat;
+      atverter.triggerGradDescStep();
+    } else if (outputMode == CC2) { // constant current operation
       error = iBatChgRef - iBat; // error is difference between reference charge current limit and battery current
     } else { // constant voltage operation
       error = vBatMax - vBat; // error is difference between max battery voltage and measured battery voltage
@@ -259,6 +274,7 @@ void controlUpdate(void)
   }
   // BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
   else if (bmsMode == FORMCOLDSTART) {
+    // TODO: check if bus voltage is actually less than battery voltage
     slowInterruptCounter++;
     if (slowInterruptCounter == 5000) { // wait for 5 seconds for bus voltages to settle, e.g. after a restart
       atverter.applyHoldHigh1(); // set to boost mode, step up from terminal 1 (bus) to terminal 2 (battery)
@@ -300,7 +316,7 @@ void controlUpdate(void)
   if (bmsMode == FORM && outputMode == CV1) { // only use for bus regulation in grid forming
     // 0.5A-5A output: classical feedback voltage mode discrete compensation
     // 0A-0.5A output: slow gradient descent mode
-    isClassicalFB = atverter.getRawI1() < 512 - 51 || atverter.getRawI1() > 512 + 51;
+    isClassicalFB = atverter.getRawI1() < -51 || atverter.getRawI1() > + 51;
   }
 
   if(isClassicalFB) { // classical feedback voltage mode discrete compensation
@@ -320,45 +336,45 @@ void controlUpdate(void)
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
     
     // average the sub-second raw coulomb count accumulator, and convert it to a mA-hour value to accumulate
-    coulombCounter += atverter.rawSigned2mA(ccntAccumulator/1000);
+    coulombCounter += atverter.raw2mA(ccntAccumulator/1000);
     ccntAccumulator = 0;
 
-    // Serial.print("BMo:");
-    // Serial.print(bmsMode);
-    // Serial.print(", OMo:");
-    // Serial.print(outputMode);
-    // Serial.print(", dut:");
-    // Serial.print(atverter.getDutyCycle());
-    // Serial.print(", vbus:");
-    // Serial.print(vBus);
-    // Serial.print(",");
-    // Serial.print(vBusMax);
-    // Serial.print(", vbat:");
-    // Serial.print(vBatMin);
-    // Serial.print(",");
-    // Serial.print(vBat25);
-    // Serial.print(",");
-    // Serial.print(atverter.getRawV2());
-    // Serial.print(",");
-    // Serial.print(vBat75);
-    // Serial.print(",");
-    // Serial.print(vBatMax);
-    // Serial.print(", BatV:");
-    // Serial.print(atverter.getV2());
-    // Serial.print(", cRef:");
-    // Serial.print(iBatChgRef);
-    // Serial.print(", dRef:");
-    // Serial.print(iBatDisRef);
-    // Serial.print(", iBat:");
-    // Serial.print(iBat);
-    // Serial.print(", BatI:");
-    // Serial.print(atverter.getI2());
-    // Serial.print(", err:");
-    // Serial.print(error);
-    // Serial.print(", ccnt:");
-    // Serial.print(coulombCounter);
-    // Serial.print(", igsd:");
-    // Serial.println(atverter.isGateShutdown());
+    Serial.print("BMo:");
+    Serial.print(bmsMode);
+    Serial.print(", OMo:");
+    Serial.print(outputMode);
+    Serial.print(", dut:");
+    Serial.print(atverter.getDutyCycle());
+    Serial.print(", vbus:");
+    Serial.print(vBus);
+    Serial.print(",");
+    Serial.print(vBusMax);
+    Serial.print(", vbat:");
+    Serial.print(vBatMin);
+    Serial.print(",");
+    Serial.print(vBat25);
+    Serial.print(",");
+    Serial.print(atverter.getRawV2());
+    Serial.print(",");
+    Serial.print(vBat75);
+    Serial.print(",");
+    Serial.print(vBatMax);
+    Serial.print(", BatV:");
+    Serial.print(atverter.getV2());
+    Serial.print(", cRef:");
+    Serial.print(iBatChgRef);
+    Serial.print(", dRef:");
+    Serial.print(iBatDisRef);
+    Serial.print(", iBat:");
+    Serial.print(iBat);
+    Serial.print(", BatI:");
+    Serial.print(atverter.getI2());
+    Serial.print(", err:");
+    Serial.print(error);
+    Serial.print(", ccnt:");
+    Serial.print(coulombCounter);
+    Serial.print(", igsd:");
+    Serial.println(atverter.isGateShutdown());
   }
 }
 
@@ -431,21 +447,29 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 
 // sets the BMS operation mode from a serial command string: FCHG, FDIS, FORM, HOLD, FCS
 void writeMODE(const char* valueStr, int receiveProtocol) {
-  if (strcmp(valueStr, "FCHG") == 0)
+  if (strcmp(valueStr, "FCHG") == 0) {
     bmsMode = FOLLOWCHARGE;
-  else if (strcmp(valueStr, "FDIS") == 0)
+    outputMode = CC2;
+    iBatChgRef = 0;
+  } else if (strcmp(valueStr, "FDIS") == 0) {
     bmsMode = FOLLOWDISCHARGE;
-  else if (strcmp(valueStr, "FORM") == 0)
+    outputMode = CC2;
+    iBatDisRef = 0;
+  } else if (strcmp(valueStr, "FORM") == 0) {
     bmsMode = FORM;
-  else if (strcmp(valueStr, "HOLD") == 0)
-    bmsMode = HOLD;
-  else if (strcmp(valueStr, "FCS") == 0)
+    outputMode = CV1;
+  } else if (strcmp(valueStr, "FCS") == 0) {
     bmsMode = FORMCOLDSTART;
+    outputMode = CV1;
+  } else { // HOLD
+    bmsMode = HOLD;
+    outputMode = CC2;
+  }
   sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:=%d", bmsMode);
   atverter.respondToMaster(receiveProtocol);
 }
 
-// gets the battery charging current limit (mA) and outputs to serial
+// gets the BMS operation mode and outputs to serial
 void readMODE(const char* valueStr, int receiveProtocol) {
   if (bmsMode == FOLLOWCHARGE)
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FCHG");
@@ -457,8 +481,7 @@ void readMODE(const char* valueStr, int receiveProtocol) {
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FCS");
   else
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:HOLD");
-  atverter.resetComp();
-
+  // atverter.resetComp();
   atverter.respondToMaster(receiveProtocol);
 }
 
@@ -467,7 +490,7 @@ void writeICHG(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atoi(valueStr);
   if (temp > IBATCHGMAX)
     temp = IBATCHGMAX;
-  iBatChgLim = atverter.mA2rawSigned(temp);
+  iBatChgLim = atverter.mA2raw(temp);
   chgInterpSlope = iBatChgLim/(vBatMax - vBat75);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WICHG:=%d", temp);
   atverter.respondToMaster(receiveProtocol);
@@ -475,7 +498,7 @@ void writeICHG(const char* valueStr, int receiveProtocol) {
 
 // gets the battery charging current limit (mA) and outputs to serial
 void readICHG(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.rawSigned2mA(iBatChgLim);
+  unsigned int temp = atverter.raw2mA(iBatChgLim);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WICHG:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
@@ -485,7 +508,7 @@ void writeIDIS(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atoi(valueStr);
   if (temp > IBATDISMAX)
     temp = IBATDISMAX;
-  iBatDisLim = atverter.mA2rawSigned(temp);
+  iBatDisLim = atverter.mA2raw(temp);
   disInterpSlope = iBatDisLim/(vBat25 - vBatMin);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WIDIS:=%d", temp);
   atverter.respondToMaster(receiveProtocol);
@@ -493,7 +516,7 @@ void writeIDIS(const char* valueStr, int receiveProtocol) {
 
 // gets the battery discharging current limit (mA) and outputs to serial
 void readIDIS(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.mA2rawSigned(iBatDisLim);
+  unsigned int temp = atverter.mA2raw(iBatDisLim);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WIDIS:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
