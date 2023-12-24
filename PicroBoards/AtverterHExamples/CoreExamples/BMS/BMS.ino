@@ -65,10 +65,10 @@ const unsigned int VBUSMAX = 28000; // max bus voltage in FORM mode
 const unsigned int VBUSMIN = 18000; // min bus voltage in FOLLOWCHARGE mode
 
 // default starting values for several BMS variables
+int bmsMode = FORMCOLDSTART;
 const unsigned int VBUSDEFAULT = 24000; // default nominal bus voltage in mV, must be greater than battery voltage here
 const int ICHGDEFAULT = 300; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
-int bmsMode = FOLLOWCHARGE;
 int outputMode = CC2; // CV1, CC1, CV2 or CC2 mode for book keeping
 
 // BMS global variables
@@ -274,7 +274,11 @@ void controlUpdate(void)
   }
   // BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
   else if (bmsMode == FORMCOLDSTART) {
-    // TODO: check if bus voltage is actually less than battery voltage
+    if (vBus > vBat) { // if ever the bus voltage exceeds battery voltage, we no longer need to cold start
+      atverter.applyHoldHigh2(); // make sure we're in buck (step down) mode
+      bmsMode = FORM;
+      return;
+    }
     slowInterruptCounter++;
     if (slowInterruptCounter == 5000) { // wait for 5 seconds for bus voltages to settle, e.g. after a restart
       atverter.applyHoldHigh1(); // set to boost mode, step up from terminal 1 (bus) to terminal 2 (battery)

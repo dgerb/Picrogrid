@@ -489,25 +489,33 @@ void AtverterH::resetComp() {
 // Gradient Descent ----------------------------------------------------------
 
 // set the gradient descent counter overflow to control step speed
-void AtverterH::setGradDescCountMax(int counterMax) {
-  _gradDescCountMax = counterMax;
+void AtverterH::setGradDescCountMax(int settlingCount, int averagingCount) {
+  _gradDescSettleMax = settlingCount;
+  _gradDescAverageMax = averagingCount;
   _gradDescCount = 0;
 }
 
-// set gradient descent to step next call to gradDescStep()
+// set gradient descent to step next call to gradDescStep(), using the given error as only error
 void AtverterH::triggerGradDescStep() {
-  _gradDescCount = _gradDescCountMax;
+  _gradDescCount = _gradDescSettleMax + _gradDescAverageMax;
+  _gradDescErrorAcc = 0;
 }
 
 // steps duty cycle based on the sign of the error
 void AtverterH::gradDescStep(int error) {
   _gradDescCount++; // use a counter to control the speed of gradient descent
-  if (_gradDescCount > _gradDescCountMax) {
-    _gradDescCount = 0;
-    long duty = getDutyCycle();
+  if (_gradDescCount < _gradDescSettleMax)
+    return;
+  _gradDescErrorAcc = _gradDescErrorAcc + error;
+  if (_gradDescCount > _gradDescSettleMax + _gradDescAverageMax) {
     // store the duty cycle value to compensator output array in case we switch to classical feedback
+    long duty = getDutyCycle();
     _compOut[0] = (int)(duty*1024/100);
-    if (error > 0) { // ascend or descend by 1% duty cycle depending on the sign of the error
+    // reset counter, calculate and process average error
+    _gradDescCount = 0;
+    int avgError = _gradDescErrorAcc/_gradDescAverageMax;
+    _gradDescErrorAcc = 0;
+    if (avgError > 0) { // ascend or descend by 1% duty cycle depending on the sign of the error
       setDutyCycle((int)(duty + 1));
     } else if (error < 0) {
       setDutyCycle((int)(duty - 1));

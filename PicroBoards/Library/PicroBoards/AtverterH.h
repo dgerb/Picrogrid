@@ -58,14 +58,14 @@ enum SensorIndex
     NUM_SENSORS
 };
 
-// moving average sample window length for sensors. Best to use powers of two so as to optimize division
+// moving average sample window length for sensors. Best to use powers of 2 so as to optimize division
 //  use this before #include to override in the .ino file: #define XXX YY
 //  e.g. to set current averaging window to size 32: #define SENSOR_I_WINDOW_MAX 32
 #ifndef SENSOR_V_WINDOW_MAX
-#define SENSOR_V_WINDOW_MAX 16
+#define SENSOR_V_WINDOW_MAX 4
 #endif
 #ifndef SENSOR_I_WINDOW_MAX
-#define SENSOR_I_WINDOW_MAX 32
+#define SENSOR_I_WINDOW_MAX 16
 #endif
 #ifndef SENSOR_T_WINDOW_MAX
 #define SENSOR_T_WINDOW_MAX 4
@@ -190,7 +190,7 @@ class AtverterH : public PicroBoard
     long calculateCompOut(); // returns compensator output for classical feedback discrete compensation
     void resetComp(); // resets the compensator past values when switching between CV and CC
   // gradient descent functions
-    void setGradDescCountMax(int counterMax); // set the gradient descent counter overflow to control speed
+    void setGradDescCountMax(int settlingCount, int averagingCount); // set the gd counter max, controls gd speed
     void triggerGradDescStep(); // set gradient descent to step next call to gradDescStep()
     void gradDescStep(int error); // steps duty cycle based on the sign of the error 
   // communications
@@ -224,7 +224,9 @@ class AtverterH : public PicroBoard
     int _compNumSize; // length of compensator numerator
     int _compDenSize; // length of compensator denominator
     int _gradDescCount = 0; // counter for gradient descent contorllers to control step speed
-    int _gradDescCountMax = 4; // gradient descent counter overflow setting to control step speed
+    int _gradDescSettleMax = SENSOR_V_WINDOW_MAX; // gd counter max, controls step speed, hold during 1st period
+    int _gradDescAverageMax = SENSOR_V_WINDOW_MAX; // gd counter max, controls step speed, average during 2nd period
+    int _gradDescErrorAcc = 0; // error accumulator for gradient descent averaging
     // diagnostics
     int _shutdownCode = 0;
     // functions
