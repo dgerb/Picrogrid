@@ -329,6 +329,32 @@ int AtverterH::mA2raw(int mA) {
   return (int)temp;
 }
 
+// Droop Resistance Conversions -------------------------------------------
+
+// sets the stored droop resistance
+void AtverterH::setRDroop(int mOhm) {
+  // ohmraw = mV/mA * A mA/rawI / (B mV/rawV) = A/B * ohm = A/(1000*B) mohm
+  //  = (mohm / 1000) * (atverter.mA2raw(1000)) / (atverter.mV2raw(1000))
+  //  = (mohm / 1000) * (vcc/341) / (vcc/79)
+  //  = mohm / 1000 * 79 / 341
+  _rDroop = (long)RDROOPFACTOR*mOhm/4316; // here we multiply by 64 so as to avoid using floating point math
+}
+
+// gets the stored droop resistance, reported as a mOhm value
+int AtverterH::getRDroop() {
+  return _rDroop*4316/RDROOPFACTOR;
+}
+
+// gets the stored droop resisance in raw form
+unsigned int AtverterH::getRDroopRaw() {
+  return _rDroop;
+}
+
+// get the droop voltage as (droop resistance)*(output current)
+int AtverterH::getVDroopRaw(int iOut) {
+  return iOut*_rDroop/RDROOPFACTOR;
+}
+
 // Sensor Private Utility Functions ---------------------------------------
 
 // returns the official VCC voltage in milliVolts
@@ -553,6 +579,9 @@ void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtoc
   } else if (strcmp(command, "RDUT") == 0) { // read the duty cycle
     sprintf(getTXBuffer(receiveProtocol), "WDUT:%d", getDutyCycle());
     respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RDRP") == 0) { // read the stored droop resistance
+    sprintf(getTXBuffer(receiveProtocol), "WDRP:%d", getRDroop());
+    respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WISD") == 0) { // write the current shutdown limit (mA)
     int temp = atoi(value);
     setCurrentShutdown(temp);
@@ -562,6 +591,11 @@ void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtoc
     int temp = atoi(value);
     setThermalShutdown(temp);
     sprintf(getTXBuffer(receiveProtocol), "WTSD:=%d", temp);
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WDRP") == 0) { // set the stored droop resistance
+    int temp = atoi(value);
+    setRDroop(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WDRP:=%d", temp);
     respondToMaster(receiveProtocol);
   } else { // send command data to the callback listener functions, registered from primary .ino file
     for (int n = 0; n < _commandCallbacksEnd; n++) {

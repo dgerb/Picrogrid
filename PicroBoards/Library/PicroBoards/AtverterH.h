@@ -123,6 +123,9 @@ const int TTABLE[14][2] = {
   880, 100
 };
 
+// droop resistance multiplication factor to avoid floating point math (multiple of 2)
+const int RDROOPFACTOR = 1024;
+
 class AtverterH : public PicroBoard
 {
   public:
@@ -184,6 +187,11 @@ class AtverterH : public PicroBoard
     int raw2degC(int raw); // converts raw ADC current sense output to °C
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
+  // droop resistance conversions
+    void setRDroop(int mOhm); // sets the stored droop resistance
+    int getRDroop(); // gets the stored droop resistance, reported as a mOhm value
+    unsigned int getRDroopRaw(); // gets the stored droop resisance in raw form
+    int getVDroopRaw(int iOut); // get the droop voltage as (droop resistance)*(output current)
   // compensation for classical feedback
     void setComp(int num[], int den[], int numSize, int denSize); // set discrete compensator coefficients
     void updateCompPast(int inputNow); // update past compensator inputs and outputs
@@ -217,6 +225,7 @@ class AtverterH : public PicroBoard
     int _currentLimitAmplitudeRaw = 375; // the upper raw (0 to 1023) current limit before gate shutoff
     int _thermalLimitC = 170; // the upper °C thermal limit before gate shutoff
     // convenience variables for controls and compensation
+    long _rDroop = 0; // stored droop resistance value
     int _compIn[8] = {0,0,0,0,0,0,0,0}; // compensator input values (raw 0-1023), current to oldest 
     int _compOut[8] = {0,0,0,0,0,0,0,0}; // compensator output values (raw 0-1023), current to oldest 
     int *_compNum; // discrete compensation difference equation numerator

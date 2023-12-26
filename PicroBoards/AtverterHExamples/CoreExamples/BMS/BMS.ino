@@ -269,7 +269,7 @@ void controlUpdate(void)
         error = vBatMin - vBat;
       }
     } else { // CV1: error regulates the bus voltage
-      error = -(vBusRef - vBus); // the negative sign is required whenever terminal 1 is what's being controlled
+      error = -(vBusRef - atverter.getVDroopRaw(iBus) - vBus); // negative sign required when terminal 1 is being controlled
     }
   }
   // BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
@@ -352,7 +352,11 @@ void controlUpdate(void)
     Serial.print(", vbus:");
     Serial.print(vBus);
     Serial.print(",");
+    Serial.print(vBusRef);
+    Serial.print(",");
     Serial.print(vBusMax);
+    Serial.print(", vdrp:");
+    Serial.print(atverter.getVDroopRaw(iBus));
     Serial.print(", vbat:");
     Serial.print(vBatMin);
     Serial.print(",");

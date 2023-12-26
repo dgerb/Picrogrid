@@ -8,10 +8,11 @@ This is the software code base for all hardware in the Picrogrid ecosystem. The 
 
 ## Target Project Timeline:
 
-10/23 - Develop BMS Atverter core example
+10/31/2023 - Develop BMS Atverter core example
 
-11/23 - Develop MPPT Atverter core example
+12/31/2023 - Develop MPPT Atverter core example
 
-12/23 - Create website and instructional videos
+1/31/2024 - Build and test a solar/storage DC microgrid with three Atverters controlled by a Pi
 
-1/24 - Build a solar/storage DC microgrid with four Atverters controlled by a Pi
+2/28/2024 - Create website and instructional videos
+

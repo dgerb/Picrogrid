@@ -31,7 +31,9 @@
   collapsing the supply lower than the input voltage in boost mode is not yet supported.
 
   Finally, this example also adds support for adjusting the voltage limit (WVLIM, RVLIM), current limit (WILIM, RILIM),
-  and the droop resistance (WRDRP, RRDRP) via serial commands of the form <REG:VALUE>.
+  and the droop resistance (WDRP, RDRP) via serial commands of the form <REG:VALUE>.
+
+  TODO: undervoltage lockout
 
   Created 8/29/23 by Daniel Gerber
 */
@@ -40,7 +42,7 @@
 AtverterH atverter;
 
 const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
-const int VLIMDEFAULT = 15000; // default voltage limit setting in mV
+const int VLIMDEFAULT = 20000; // default voltage limit setting in mV
 const int ILIMDEFAULT = 2500; // default current limit setting in mA
 
 // discrete compensator coefficients
@@ -56,7 +58,6 @@ int compDen [] = {8, -8};
 
 int vLim = 0; // reference output voltage setpoint (raw 0-1023)
 int iLim = 1024; // current limit (raw 0-1023)
-unsigned int RDroop32 = 0; // 32 times the raw droop resistance, used this way to avoid a division
 int outputMode = CV2; // constant voltage (CV2) or constant current (CC2) mode finite state machine (on port 2)
 
 long slowInterruptCounter = 0;
@@ -127,10 +128,8 @@ void controlUpdate(void)
     error = iLim - iOut; // error is difference between current limit and output current
   } else { // constant voltage operation
     // if using droop control, we droop the reference voltage by a term proportional to the output current.
-    // we initially multiply the droop resistance by 32, and then divide it again here to avoid long
-    //  division and floating point math
-    // error = drooped reference - output voltage
-    error = (vLim - iOut*RDroop32/32) - vOut;
+    // error = (reference voltage - droop voltage) - output voltage
+    error = (vLim - atverter.getVDroopRaw(iOut)) - vOut;
   }
 
   // update array of past compensator inputs
@@ -167,10 +166,6 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
     writeVLIM(value, receiveProtocol);
   } else if (strcmp(command, "RVLIM") == 0) {
     readVLIM(value, receiveProtocol);
-  } else if (strcmp(command, "WRDRP") == 0) {
-    writeDroopRes(value, receiveProtocol);
-  } else if (strcmp(command, "RRDRP") == 0) {
-    readDroopRes(value, receiveProtocol);
   } else if (strcmp(command, "WILIM") == 0) {
     writeILIM(value, receiveProtocol);
   } else if (strcmp(command, "RILIM") == 0) {
@@ -196,27 +191,6 @@ void writeVLIM(const char* valueStr, int receiveProtocol) {
 void readVLIM(const char* valueStr, int receiveProtocol) {
   unsigned int temp = atverter.raw2mV(vLim);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WVLIM:%d", temp);
-  atverter.respondToMaster(receiveProtocol);
-}
-
-// sets the droop resistance (milli-ohms) from a serial command
-// minimum is 135 milli-ohms
-void writeDroopRes(const char* valueStr, int receiveProtocol) {
-  int temp = atoi(valueStr);
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WRDRP:=%d", temp);
-  // ohmraw = mV/mA * A mA/rawI / (B mV/rawV) = A/B * ohm = A/(1000*B) mohm
-  //  = (mohm / 1000) * (atverter.mA2raw(1000) - 512) / (atverter.mV2raw(1000))
-  //  = (mohm / 1000) * (vcc/341) / (vcc/79)
-  //  = mohm / 1000 * 79 / 341
-  temp = 32*temp/4316; // here we multiply by 32 so as to avoid using floating point math
-  RDroop32 = temp;
-  atverter.respondToMaster(receiveProtocol);
-}
-
-// gets the droop resistance (milli-ohms) and outputs to serial
-void readDroopRes(const char* valueStr, int receiveProtocol) {
-  long temp = RDroop32*4316/32; 
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WRDRP:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }
 
