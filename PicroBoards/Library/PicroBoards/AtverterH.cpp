@@ -7,10 +7,15 @@
 #include "AtverterH.h"
 
 AtverterH::AtverterH() {
+}
+
+// default initialization routine
+void AtverterH::initialize() {
   setupPinMode();
   shutdownGates();
   initializeSensors();
-  setCurrentShutdown(6500); // set default current shutdown above 5A plus ripple
+  setCurrentShutdown1(6500); // set default current shutdown above 5A plus ripple
+  setCurrentShutdown2(6500); // set default current shutdown above 5A plus ripple
   setThermalShutdown(80); // set thermal shutdown decently high
 }
 
@@ -429,19 +434,27 @@ int AtverterH::getShutdownCode() {
     return _shutdownCode;
 }
 
-// sets the upper current shutoff limit in mA
-void AtverterH::setCurrentShutdown(int current_mA) {
+// sets the terminal 1 current shutoff limit in mA, max 7500 mA
+// setting the limit greater than 7500 mA will cause the current shutoff never to be triggered
+void AtverterH::setCurrentShutdown1(int current_mA) {
   long currentL = (long)current_mA;
-  _currentLimitAmplitudeRaw = currentL*128/1875;
+  _currentLimitAmplitudeRaw1 = currentL*128/1875;
+}
+
+// sets the terminal 2 current shutoff limit in mA, max 7000 mA
+// setting the limit greater than 7500 mA will cause the current shutoff never to be triggered
+void AtverterH::setCurrentShutdown2(int current_mA) {
+  long currentL = (long)current_mA;
+  _currentLimitAmplitudeRaw2 = currentL*128/1875;
 }
 
 // checks if last sensed current is greater than current limit
 void AtverterH::checkCurrentShutdown() {
   // this function takes negligable microseconds unless actually shutting down
-  if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw
-    || _sensorAverages[I1_INDEX] < -_currentLimitAmplitudeRaw
-    || _sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw
-    || _sensorAverages[I2_INDEX] < -_currentLimitAmplitudeRaw)
+  if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw1
+    || _sensorAverages[I1_INDEX] < -_currentLimitAmplitudeRaw1
+    || _sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw2
+    || _sensorAverages[I2_INDEX] < -_currentLimitAmplitudeRaw2)
     shutdownGates(OVERCURRENT);
 }
 
@@ -582,10 +595,15 @@ void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtoc
   } else if (strcmp(command, "RDRP") == 0) { // read the stored droop resistance
     sprintf(getTXBuffer(receiveProtocol), "WDRP:%d", getRDroop());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WISD") == 0) { // write the current shutdown limit (mA)
+  } else if (strcmp(command, "WIS1") == 0) { // write the terminal 1 current shutdown limit (mA)
     int temp = atoi(value);
-    setCurrentShutdown(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WISD:=%d", temp);
+    setCurrentShutdown1(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WIS1:=%d", temp);
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WIS2") == 0) { // write the terminal 2 current shutdown limit (mA)
+    int temp = atoi(value);
+    setCurrentShutdown2(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WIS2:=%d", temp);
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WTSD") == 0) { // write the thermal shutdown limit (°C)
     int temp = atoi(value);

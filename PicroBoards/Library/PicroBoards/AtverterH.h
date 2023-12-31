@@ -131,6 +131,7 @@ class AtverterH : public PicroBoard
   public:
     AtverterH(); // constructor
   // Atmega initialization
+    void initialize(); // default initialization routine
     void setupPinMode(); // sets appropriate pinMode() for each const pin
     void initializeSensors(); // initialize sensor average array to sensor read
     void initializeSensors(int avgWindowLength); // initialize sensor average array to sensor read
@@ -176,7 +177,8 @@ class AtverterH : public PicroBoard
     void shutdownGates(int errorCode); // immediately triggers the gate shutdown
     bool isGateShutdown(); // returns true if the gate shutdown signal is currently latched
     int getShutdownCode(); // returns the appropriate shutdown code, or -1 if gates not shutdown
-    void setCurrentShutdown(int current); // sets the upper current shutoff limit in mA
+    void setCurrentShutdown1(int current); // sets the terminal 1 current shutoff limit in mA, max 7500 mA
+    void setCurrentShutdown2(int current); // sets the terminal 2 current shutoff limit in mA, max 7500 mA
     void checkCurrentShutdown(); // checks if last sensed current is greater than current limit
     void setThermalShutdown(int temperature); // sets the upper temperature shutoff in °C
     void checkThermalShutdown(); // checks if last sensed current is greater than thermal limit
@@ -222,8 +224,9 @@ class AtverterH : public PicroBoard
     int _sensorPastT1[AVERAGE_WINDOW_MAX[T1_INDEX]]; // array raw sensor moving averages
     int _sensorPastT2[AVERAGE_WINDOW_MAX[T2_INDEX]]; // array raw sensor moving averages
     int _vcc; // stored value of vcc measured at start up and/or periodically
-    int _currentLimitAmplitudeRaw = 375; // the upper raw (0 to 1023) current limit before gate shutoff
-    int _thermalLimitC = 170; // the upper °C thermal limit before gate shutoff
+    int _currentLimitAmplitudeRaw1 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
+    int _currentLimitAmplitudeRaw2 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
+    int _thermalLimitC = 80; // the upper °C thermal limit before gate shutoff
     // convenience variables for controls and compensation
     long _rDroop = 0; // stored droop resistance value
     int _compIn[8] = {0,0,0,0,0,0,0,0}; // compensator input values (raw 0-1023), current to oldest 

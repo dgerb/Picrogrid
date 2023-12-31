@@ -65,9 +65,9 @@ const unsigned int VBUSMAX = 28000; // max bus voltage in FORM mode
 const unsigned int VBUSMIN = 18000; // min bus voltage in FOLLOWCHARGE mode
 
 // default starting values for several BMS variables
-int bmsMode = FORMCOLDSTART;
+int bmsMode = FOLLOWCHARGE;
 const unsigned int VBUSDEFAULT = 24000; // default nominal bus voltage in mV, must be greater than battery voltage here
-const int ICHGDEFAULT = 300; // default charging current
+const int ICHGDEFAULT = 1000; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
 int outputMode = CC2; // CV1, CC1, CV2 or CC2 mode for book keeping
 
@@ -174,7 +174,7 @@ void controlUpdate(void)
   ccntAccumulator += iBat;
 
   // update sliding reference currents based on the averaged battery voltage measured this cycle
-  if (setIRefsCounter > 1000) {
+  if (setIRefsCounter > 100) { // slide the reference currents slowly to avoid inrush and instabilities
     setIRefs(vBat);
     setIRefsCounter = 0;
   } else

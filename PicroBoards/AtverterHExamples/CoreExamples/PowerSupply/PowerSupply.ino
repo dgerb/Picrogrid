@@ -33,8 +33,6 @@
   Finally, this example also adds support for adjusting the voltage limit (WVLIM, RVLIM), current limit (WILIM, RILIM),
   and the droop resistance (WDRP, RDRP) via serial commands of the form <REG:VALUE>.
 
-  TODO: undervoltage lockout
-
   Created 8/29/23 by Daniel Gerber
 */
 
@@ -44,6 +42,7 @@ AtverterH atverter;
 const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
 const int VLIMDEFAULT = 20000; // default voltage limit setting in mV
 const int ILIMDEFAULT = 2500; // default current limit setting in mA
+const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable converter below UVLO limit)
 
 // discrete compensator coefficients
 // you may want to customize this for your specific input/output voltage/current operating points
@@ -58,16 +57,16 @@ int compDen [] = {8, -8};
 
 int vLim = 0; // reference output voltage setpoint (raw 0-1023)
 int iLim = 1024; // current limit (raw 0-1023)
+int uvloRaw = 0; // undervoltage lockout limit (raw 0-1023)
 int outputMode = CV2; // constant voltage (CV2) or constant current (CC2) mode finite state machine (on port 2)
 
 long slowInterruptCounter = 0;
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-  atverter.setupPinMode(); // set pins to input or output
-  atverter.initializeSensors(); // set filtered sensor values to initial reading
-  atverter.setCurrentShutdown(6000); // set gate shutdown at 6A peak current 
-  atverter.setThermalShutdown(60); // set gate shutdown at 60°C temperature
+  // run default initialization routine:
+  // setupPinMode();shutdownGates();initializeSensors();setCurrentShutdown1/2(6500);setThermalShutdown(80);
+  atverter.initialize();
 
   // set up UART command support
   atverter.addCommandCallback(&interpretRXCommand);
@@ -82,10 +81,13 @@ void setup() {
   // initialize voltage and current limits to default values above
   vLim = atverter.mV2raw(VLIMDEFAULT); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
   iLim = atverter.mA2raw(ILIMDEFAULT);
+  uvloRaw = atverter.mV2raw(UVLODEFAULT);
+
   // apply holds on either side of the Atverter based on DC-DC operation mode
   switch(DCDCMODE) {
     case BUCK:
       atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
+      atverter.setDutyCycle(1);
       break;
     case BOOST:
       atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
@@ -95,8 +97,8 @@ void setup() {
       break;
   }
 
-  atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
   atverter.startPWM(); // once all is said and done, start the PWM
+  atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 }
 
 void loop() { } // we don't use loop() because it does not loop at a fixed period
@@ -109,10 +111,19 @@ void controlUpdate(void)
   atverter.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
+  int vIn = atverter.getRawV1();
   int vOut = atverter.getRawV2();
   int iOut = -1*(atverter.getRawI2());
     // multiply by -1, since positive current is technically defined as current into the terminal
     // but here, current out of the terminal is easier to work with and understand
+
+  // first check under-voltage lockout condition. disable gate drivers if we are under voltage
+  if (vIn < uvloRaw - 8 && !atverter.isGateShutdown()) { // shutdown when ~0.5V below UVLO voltage (for hysteresis)
+    atverter.shutdownGates(4); // shutdown code 4 will represent undervoltage lockout
+  } else if (atverter.isGateShutdown() && atverter.getShutdownCode() == 4 &&
+      vIn > uvloRaw + 8) { // turn on when ~0.5V above UVLO voltage
+    atverter.enableGateDrivers();
+  }
 
   // check conditions to switch between constant voltage and constant current states
   if (outputMode == CV2 && iOut > iLim) { // switch to constant current if output current exceeds current limit
@@ -155,6 +166,12 @@ void controlUpdate(void)
     atverter.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
     atverter.updateTSensors(); // occasionally read thermistors and update temperature moving average
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
+
+    Serial.print(vIn);
+    Serial.print(",");
+    Serial.print(uvloRaw);
+    Serial.print(",");
+    Serial.println(atverter.getShutdownCode());
   }
 }
 
