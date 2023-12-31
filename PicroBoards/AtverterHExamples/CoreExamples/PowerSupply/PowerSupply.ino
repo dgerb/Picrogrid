@@ -68,15 +68,15 @@ void setup() {
   // setupPinMode();shutdownGates();initializeSensors();setCurrentShutdown1/2(6500);setThermalShutdown(80);
   atverter.initialize();
 
-  // set up UART command support
+  // set discrete compensator coefficients for use in classical feedback compensation
+  atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
+
+  // set up UART and I2C command support
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
   ReceiveEventI2C receiveEvent = [] (int howMany) {atverter.receiveEventI2C(howMany);};
   RequestEventI2C requestEvent = [] () {atverter.requestEventI2C();};
   atverter.startI2C(3, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
-
-  // set discrete compensator coefficients for use in classical feedback compensation
-  atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
 
   // initialize voltage and current limits to default values above
   vLim = atverter.mV2raw(VLIMDEFAULT); // based on VCC; make sure Atverter is powered from side 1 input when this line runs
@@ -166,12 +166,6 @@ void controlUpdate(void)
     atverter.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
     atverter.updateTSensors(); // occasionally read thermistors and update temperature moving average
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
-
-    Serial.print(vIn);
-    Serial.print(",");
-    Serial.print(uvloRaw);
-    Serial.print(",");
-    Serial.println(atverter.getShutdownCode());
   }
 }
 

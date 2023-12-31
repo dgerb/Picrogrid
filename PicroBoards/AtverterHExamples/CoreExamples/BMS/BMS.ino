@@ -105,13 +105,10 @@ long slowInterruptCounter = 0;
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-  atverter.setupPinMode(); // set pins to input or output
-  atverter.initializeSensors(); // set filtered sensor values to initial reading
-  atverter.setCurrentShutdown(6500); // set gate shutdown at 6.5A peak current 
-  atverter.setThermalShutdown(80); // set gate shutdown at 80°C temperature
+  atverter.initialize();
   atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
 
-  // set up UART command support
+  // set up UART and I2C command support
   atverter.addCommandCallback(&interpretRXCommand);
   atverter.startUART();
   ReceiveEventI2C receiveEvent = [] (int howMany) {atverter.receiveEventI2C(howMany);};
