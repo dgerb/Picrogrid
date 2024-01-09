@@ -52,6 +52,7 @@ const unsigned int PLIMDEFAULT = 20000; // default power limit in mW (max 65535)
 const unsigned int VBUSDEFAULT = 20000; // default bus voltage (mV) in FORM, must be greater than solar panel voltage here
 const unsigned int VBUSSWITCH = 22000; // min bus voltage (mV) in FOLLOW mode, max bus voltage in FORM mode
 const unsigned int VBUSMAX = 26000; // max bus voltage (mV) in FOLLOW mode
+const unsigned int RDROOP = 200; // default droop resistance (mohms) in FORM mode
 
 int solarMode = FORM; // solar controller operating mode: FOLLOW, FORM, DISCONNECT
 int outputMode = CV1; // CV1 (FOLLOW), CV2 or CC2 (FORM) for book keeping
@@ -75,6 +76,7 @@ bool vBusInRange = false; // latches to true once the bus voltage is in the appr
 // FORM and DISCONNECT variables
 int vSolarMin = 0; // in FORM mode, if solar panel voltage drops below vSolarMin, then disconnect
 unsigned int disconnectTimer = 0; // remain disconnected for this many milliseconds
+unsigned int switchTimer = 0; // count how long bus voltage must be above vBusSwitch until switch to FOLLOW
 
 // discrete compensator coefficients for classical feedback
 int compNum [] = {8, 0};
@@ -86,6 +88,7 @@ long slowInterruptCounter = 0;
 void setup() {
   atverter.initialize();
   atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
+  atverter.setRDroop(RDROOP);
 
   // set up UART and I2C command support
   atverter.addCommandCallback(&interpretRXCommand);
@@ -155,6 +158,7 @@ void controlUpdate(void)
     } else if (vBus < vBusSwitch && vBusInRange) { // switch to FORM mode if bus voltage falls below minimum threshold
       solarMode = FORM;
       vBusInRange = false;
+      return;
     } else if (iSolar < 0) { // make sure no current going into solar panel, if so perform corrective action
       error = 1;
     } else { // MPPT algorithm (gradient descent)
@@ -204,18 +208,27 @@ void controlUpdate(void)
   else if (solarMode == FORM) {
     outputMode = CV2; // just for bookkeeping
     // check if the bus and solar voltages are in acceptable range for FORM mode
-    if (vBus > vBusSwitch) { // switch to FOLLOW if bus voltage goes above the "switch" threshold
-      solarMode = FOLLOW;
-    } else if (vSolar < vSolarMin) { // disconnect if panel voltage is below min needed to power Atmega
+    if (vBus > vBusSwitch) { // check if bus voltage goes above the "switch" threshold
+      switchTimer ++;
+      if (switchTimer > 5000) // has vBus been held high for 5 seconds
+        solarMode = FOLLOW; // if so, switch to FOLLOW mode
+    } else {
+      switchTimer = 0; // if ever vBus falls below vBusSwitch, reset switch timer
+    }
+    if (vSolar < vSolarMin && vBus < 3*vBusLim/4) { // disconnect if voltage below min needed to power Atmega
       disconnect(5000);
     } else if (iSolar < 0) { // make sure no current going into solar panel, if so perform corrective action
-      error = 1;
+      error = 0 - iSolar;
+      atverter.triggerGradDescStep();
+    } else if (vBus > vBusMax) { // make sure vBus < vBusMax, if so perform corrective action
+      error = vBus - vBusMax;
+      atverter.triggerGradDescStep();
     } else {
       // if bus voltage is low (e.g. startup), then use a counter to slowly change duty cycle to avoid inrush
-      if (vBus < 3*vBusSwitch/4 && avgCounter < 32)
+      if (vBus < 3*vBusLim/4 && avgCounter < 32)
         avgCounter++;
       else { // bus voltage is in appropriate range and all systems go
-        error = vBusLim - vBus; // error based on standard constant voltage control
+        error = vBusLim - atverter.getVDroopRaw(iBus) - vBus; // error based on standard constant voltage control
         avgCounter = 0;
       }
     }
@@ -298,8 +311,8 @@ void controlUpdate(void)
 void disconnect(int dcTimer) {
   disconnectTimer = dcTimer; // equivalent to 10 seconds assuming 1ms updates
   solarMode = DISCONNECT;
-}
   atverter.shutdownGates(4);
+}
 
 void connectForm() {
   atverter.setDutyCycle(1);
@@ -338,6 +351,8 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 
 // sets the Solar operation mode from a serial command string: FOL, FORM, DISC
 void writeMODE(const char* valueStr, int receiveProtocol) {
+  if(atverter.isGateShutdown())
+    atverter.enableGateDrivers();
   if (strcmp(valueStr, "FOL") == 0) {
     connectFollow();
   } else if (strcmp(valueStr, "FORM") == 0) {

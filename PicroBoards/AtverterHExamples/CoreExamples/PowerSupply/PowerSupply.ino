@@ -39,10 +39,10 @@
 #include <AtverterH.h>
 AtverterH atverter;
 
-const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
+const int DCDCMODE = BOOST; // BUCK, BOOST, BUCKBOOST
 const int VLIMDEFAULT = 20000; // default voltage limit setting in mV
 const int ILIMDEFAULT = 2500; // default current limit setting in mA
-const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable converter below UVLO limit)
+const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable converter when source below UVLO limit)
 
 // discrete compensator coefficients
 // you may want to customize this for your specific input/output voltage/current operating points
@@ -91,6 +91,7 @@ void setup() {
       break;
     case BOOST:
       atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
+      atverter.setDutyCycle(99);
       break;
     case BUCKBOOST:
       atverter.removeHold(); // removes holds; both sides will be switching
