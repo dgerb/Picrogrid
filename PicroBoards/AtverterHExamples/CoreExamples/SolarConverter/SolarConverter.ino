@@ -44,6 +44,13 @@ enum SolarModes
     NUM_SOLARMODES
 };
 
+enum DisconnectConditions
+{   CLEAR = 0,
+    MANUAL = 1,
+    FORMSOLARLOW = 2,
+    NUM_DCCOND
+};
+
 // specify the absolute max values, from solar panel datasheet
 const unsigned int VSOLARMIN = 5000; // minimum solar voltage before converter disconnects
 const unsigned int PLIMDEFAULT = 20000; // default power limit in mW (max 65535)
@@ -56,6 +63,7 @@ const unsigned int RDROOP = 200; // default droop resistance (mohms) in FORM mod
 
 int solarMode = FORM; // solar controller operating mode: FOLLOW, FORM, DISCONNECT
 int outputMode = CV1; // CV1 (FOLLOW), CV2 or CC2 (FORM) for book keeping
+int disconnectCondition = 0; // stored condition or reason for disconnecting
 
 // solar set point raw global variables
 long pLim = 0; // limit of power from solar panel in FOLLOW mode raw
@@ -216,13 +224,20 @@ void controlUpdate(void)
       switchTimer = 0; // if ever vBus falls below vBusSwitch, reset switch timer
     }
     if (vSolar < vSolarMin && vBus < 3*vBusLim/4) { // disconnect if voltage below min needed to power Atmega
-      disconnect(5000);
+      disconnect(FORMSOLARLOW);
     } else if (iSolar < 0) { // make sure no current going into solar panel, if so perform corrective action
       error = 0 - iSolar;
       atverter.triggerGradDescStep();
     } else if (vBus > vBusMax) { // make sure vBus < vBusMax, if so perform corrective action
       error = vBus - vBusMax;
       atverter.triggerGradDescStep();
+      atverter.gradDescStep(error);
+      atverter.triggerGradDescStep();
+      atverter.gradDescStep(error);
+      atverter.triggerGradDescStep();
+      atverter.gradDescStep(error);
+      atverter.triggerGradDescStep();
+      atverter.gradDescStep(error);      
     } else {
       // if bus voltage is low (e.g. startup), then use a counter to slowly change duty cycle to avoid inrush
       if (vBus < 3*vBusLim/4 && avgCounter < 32)
@@ -235,10 +250,12 @@ void controlUpdate(void)
   }
   // Solar Mode: DISCONNECT
   else { // in DISCONNECT mode, wait until disconnect timer is done, then revert to FORM mode
-    if (disconnectTimer <= 0) {
-      connectForm();
-    } else if (disconnectTimer < 60000) { // arbitrary max of 1 minutes
-      disconnectTimer --;
+    if (disconnectCondition == FORMSOLARLOW) {
+      if (disconnectTimer <= 0) {
+        connectForm();
+      } else if (disconnectTimer < 60000) { // arbitrary max of 1 minutes
+        disconnectTimer --;
+      }
     }
   }
 
@@ -308,8 +325,10 @@ void controlUpdate(void)
   }
 }
 
-void disconnect(int dcTimer) {
-  disconnectTimer = dcTimer; // equivalent to 10 seconds assuming 1ms updates
+void disconnect(int dcCondition) {
+  disconnectCondition = dcCondition;
+  if (disconnectCondition == FORMSOLARLOW)
+    disconnectTimer = 5000; // equivalent to 5 seconds assuming 1ms updates
   solarMode = DISCONNECT;
   atverter.shutdownGates(4);
 }

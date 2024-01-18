@@ -39,9 +39,9 @@
 #include <AtverterH.h>
 AtverterH atverter;
 
-const int DCDCMODE = BOOST; // BUCK, BOOST, BUCKBOOST
-const int VLIMDEFAULT = 20000; // default voltage limit setting in mV
-const int ILIMDEFAULT = 2500; // default current limit setting in mA
+const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
+const int VLIMDEFAULT = 15000; // default voltage limit setting in mV
+const int ILIMDEFAULT = 500; // default current limit setting in mA
 const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable converter when source below UVLO limit)
 
 // discrete compensator coefficients
@@ -55,11 +55,15 @@ const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable c
 int compNum [] = {2, 0};
 int compDen [] = {8, -8};
 
-int vLim = 0; // reference output voltage setpoint (raw 0-1023)
-int iLim = 1024; // current limit (raw 0-1023)
+int vLim = 0; // reference output voltage setpoint and voltage limit (raw 0-1023)
 int uvloRaw = 0; // undervoltage lockout limit (raw 0-1023)
-int outputMode = CV2; // constant voltage (CV2) or constant current (CC2) mode finite state machine (on port 2)
 
+int iLim = 512; // current limit (raw -512 to 512)
+int iRef = 0; // reference output current setpoint (raw -512 to 512). slews from 0 to iLim
+unsigned int iSlewCountMax = 20; // slew rate at which iRef increases up to iLim (counter maximum)
+unsigned int iSlewCount = 0; // iRef slew counter
+
+int outputMode = CV2; // constant voltage (CV2) or constant current (CC2) mode finite state machine (on port 2)
 long slowInterruptCounter = 0;
 
 // the setup function runs once when you press reset or power the board
@@ -83,22 +87,7 @@ void setup() {
   iLim = atverter.mA2raw(ILIMDEFAULT);
   uvloRaw = atverter.mV2raw(UVLODEFAULT);
 
-  // apply holds on either side of the Atverter based on DC-DC operation mode
-  switch(DCDCMODE) {
-    case BUCK:
-      atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
-      atverter.setDutyCycle(1);
-      break;
-    case BOOST:
-      atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
-      atverter.setDutyCycle(99);
-      break;
-    case BUCKBOOST:
-      atverter.removeHold(); // removes holds; both sides will be switching
-      break;
-  }
-
-  atverter.startPWM(); // once all is said and done, start the PWM
+  startDutyPWM();
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 }
 
@@ -123,11 +112,19 @@ void controlUpdate(void)
     atverter.shutdownGates(4); // shutdown code 4 will represent undervoltage lockout
   } else if (atverter.isGateShutdown() && atverter.getShutdownCode() == 4 &&
       vIn > uvloRaw + 8) { // turn on when ~0.5V above UVLO voltage
-    atverter.enableGateDrivers();
+    iRef = 0;
+    startDutyPWM();
+  }
+
+  // update reference current iRef as it increases to current limit iLim
+  iSlewCount++;
+  if (iRef < iLim && iSlewCount > iSlewCountMax) {
+    iRef++;
+    iSlewCount = 0;
   }
 
   // check conditions to switch between constant voltage and constant current states
-  if (outputMode == CV2 && iOut > iLim) { // switch to constant current if output current exceeds current limit
+  if (outputMode == CV2 && iOut > iRef) { // switch to constant current if output current exceeds current limit
     outputMode = CC2;
     atverter.resetComp(); // reset compensator past inputs and outputs since not relevant to CC mode
   } else if (outputMode == CC2 && vOut > vLim) { // switch to constant voltage if output voltage exceeds voltage limit
@@ -137,7 +134,7 @@ void controlUpdate(void)
 
   int error;
   if (outputMode == CC2) { // constant current operation
-    error = iLim - iOut; // error is difference between current limit and output current
+    error = iRef - iOut; // error is difference between current limit and output current
   } else { // constant voltage operation
     // if using droop control, we droop the reference voltage by a term proportional to the output current.
     // error = (reference voltage - droop voltage) - output voltage
@@ -168,6 +165,26 @@ void controlUpdate(void)
     atverter.updateTSensors(); // occasionally read thermistors and update temperature moving average
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
   }
+}
+
+void startDutyPWM() {
+  // apply holds on either side of the Atverter based on DC-DC operation mode
+  int startDuty;
+  switch(DCDCMODE) {
+    case BUCK:
+      atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
+      startDuty = 1;
+      break;
+    case BOOST:
+      atverter.applyHoldHigh1(); // hold side 1 high for a boost converter with side 1 input
+      startDuty = 99;
+      break;
+    case BUCKBOOST:
+      atverter.removeHold(); // removes holds; both sides will be switching
+      startDuty = 50;
+      break;
+  }
+  atverter.startPWM(startDuty); // once all is said and done, start the PWM
 }
 
 // serial command interpretation function

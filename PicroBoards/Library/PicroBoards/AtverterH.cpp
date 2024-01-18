@@ -71,8 +71,10 @@ void AtverterH::enableGateDrivers() {
   _shutdownCode = 0; // reset shutdown code (i.e. set to "hardware" shutdown)
 }
 
-// legacy; replaced by enableGateDrivers(), but kept for user readability
-void AtverterH::startPWM() {
+// sets initial duty cycle and enables gate drivers
+// we recommend you use this in the setup function; ensures you set duty properly before enabling
+void AtverterH::startPWM(int initialDuty) {
+  setDutyCycle(initialDuty);
   enableGateDrivers();
 }
 

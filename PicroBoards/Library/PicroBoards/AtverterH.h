@@ -98,6 +98,7 @@ enum OuputModes
 // shutdown error codes for convenience and bookkeeping. user-defined codes start at 4
 enum ShutdownCodes
 {
+  // is not shut down = -1
   HARDWARE = 0,
   SOFTWAREUNLABELED = 1,
   OVERCURRENT = 2,
@@ -138,6 +139,7 @@ class AtverterH : public PicroBoard
     void initializeInterruptTimer(long periodus, // starts periodic control timer
       void (*interruptFunction)(void)); // inputs: period (ms), controller function reference
     void enableGateDrivers(); // resets protection latch, enabling the gate drivers
+    void startPWM(int initialDuty); // sets initial duty cycle and enables gate drivers
   // duty cycle
     void setDutyCycle(int dutyCycle); // sets duty cycle (0 to 100)
     void setDutyCycleFloat(float dutyCycleFloat); // sets duty cycle (0.0 to 1.0)
@@ -206,7 +208,6 @@ class AtverterH : public PicroBoard
   // communications
     void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
   // legacy functions
-    void startPWM(); // replaced by enableGateDrivers()
     void initializePWMTimer(); // not needed with FastPWM library
   private:
     // switch operation

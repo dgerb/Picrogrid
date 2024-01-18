@@ -21,11 +21,12 @@ long slowInterruptCounter = 0;
 void setup() {
   atverterH.setupPinMode(); // set pins to input or output
   atverterH.initializeSensors(); // set filtered sensor values to initial reading
-  atverterH.setCurrentShutdown(6000); // set gate shutdown at 6A peak current 
+  atverterH.setCurrentShutdown1(6000); // set gate shutdown at 6A peak current 
+  atverterH.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
   atverterH.setThermalShutdown(60); // set gate shutdown at 60°C temperature
-  atverterH.setDutyCycle(50); // set the initial duty cycle at something reasonable
 
-  atverterH.startPWM(); // usually you want to start the PWM before the interrupt timer is intialized
+  atverterH.startPWM(50); // start PWM with 50% duty cycle (V1 = V2)
+  // usually you want to start the PWM before the interrupt timer is intialized
   atverterH.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
 
   Serial.begin(38400); // in this example, send messages to computer via basic UART serial

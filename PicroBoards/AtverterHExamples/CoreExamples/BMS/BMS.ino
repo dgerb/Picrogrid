@@ -59,9 +59,13 @@ enum BMSModes
 enum DisconnectConditions
 {   CLEAR = 0,
     MANUAL = 1,
-    FCHGBUSLOW = 2,
-    FDISBUSHIGH = 3,
-    FORMBUSHIGH = 4,
+    STARTBUSLOW = 2,
+    FCHGBUSHIGH = 3,
+    FCHGBUSLOW = 4,
+    FDISBUSHIGH = 5,
+    FDISBUSLOW = 6,
+    FORMBUSHIGH = 7,
+    FORMBUSLOW = 8,
     NUM_DCCOND
 };
 
@@ -70,16 +74,19 @@ const unsigned int VBATMAX = 14000; // max battery voltage in mV
 const unsigned int VBATMIN = 10000; // min battery voltage in mV
 const int IBATCHGMAX = 3000; // max battery charging current in mA
 const int IBATDISMAX = 5000; // max battery discharging current in mA
-const unsigned int VBUSMAX = 28000; // max bus voltage in FORM mode
+const unsigned int VBUSMAX = 32000; // max bus voltage in FORM mode
 const unsigned int VBUSMIN = 16000; // min bus voltage in FOLLOWCHARGE mode
 
 // default starting values for several BMS variables
 int bmsMode = FOLLOWCHARGE;
-const unsigned int VBUSDEFAULT = 24000; // default nominal bus voltage in mV, must be greater than battery voltage here
 const int ICHGDEFAULT = 1000; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
-int outputMode = CC2; // CV1, CC1, CV2 or CC2 mode for book keeping
-int disconnectCondition = 0;
+const unsigned int RDROOP = 200; // default droop resistance (mohms) in FORM mode
+
+// operation in a microgrid
+const unsigned int VBUSDEFAULT = 24000; // FORM mode default bus voltage in mV, must be greater than battery voltage
+const unsigned int FCHGFORMTHRESHOLD = 12000; // switch from Follow Charge to Form when battery voltage goes above this threshold
+                                              // to disable the switch from FCHG to FORM, set this number higher than VBATMAX
 
 // BMS global variables
 unsigned int vBusRef = 0; // reference terminal 1 voltage setpoint (raw 0-1023); nominal bus voltage
@@ -93,6 +100,7 @@ int iBatChgLim = 0; // peak charging current limit
 int iBatDisLim = 0; // peak discharge current limit
 int iBatChgRef = 0; // sliding charging current limit
 int iBatDisRef = 0; // sliding discharge current limit
+unsigned int fchgFormThreshold = 0; // battery voltage threshold above which BMS switches from FCHG to FORM if enabled
 
 // BMS algorithm interpolation slopes
 // reference charge current = 0 + (vBatMax - vBat)*chgInterpSlope
@@ -111,12 +119,16 @@ long ccntAccumulator = 0; // sub-second column counter accumulator for averaging
 int compNum [] = {8, 0};
 int compDen [] = {8, -8};
 
+// operational global variables
+int outputMode = CC2; // CV1, CC1, CV2 or CC2 mode for book keeping
+int disconnectCondition = 0; // stored condition or reason for disconnecting
 long slowInterruptCounter = 0;
 
 // the setup function runs once when you press reset or power the board
 void setup() {
   atverter.initialize();
   atverter.setComp(compNum, compDen, sizeof(compNum)/sizeof(compNum[0]), sizeof(compDen)/sizeof(compDen[0]));
+  atverter.setRDroop(RDROOP);
 
   // set up UART and I2C command support
   atverter.addCommandCallback(&interpretRXCommand);
@@ -129,6 +141,7 @@ void setup() {
   vBusRef = atverter.mV2raw(VBUSDEFAULT);
   vBusMax = atverter.mV2raw(VBUSMAX);
   vBusMin = atverter.mV2raw(VBUSMIN);
+  fchgFormThreshold = atverter.mV2raw(FCHGFORMTHRESHOLD);
 
   // set battery raw voltage thresholds (raw 0-1023)
   int vBatDiff = VBATMAX-VBATMIN;
@@ -149,10 +162,9 @@ void setup() {
   // hold side 2 for buck mode with port 1 input and port 2 output
   atverter.applyHoldHigh2();
 
-  // once all is said and done, start the PWM. Grid-forming cold start has a hard coded start-up procedure
-  if (bmsMode != FORMCOLDSTART)
-    atverter.startPWM();
-  
+  // once all is said and done, set the proper duty cycle and start the PWM
+  setupMode(bmsMode);
+
   // finally let the periodic control algorithm begin
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 }
@@ -180,17 +192,30 @@ void controlUpdate(void)
   // update the sub-second raw coulomb counter accumulator
   ccntAccumulator += iBat;
 
-  // update sliding reference currents based on the averaged battery voltage measured this cycle
-  if (setIRefsCounter > 1000) { // slide the reference currents slowly to avoid inrush and instabilities
-    setIRefs(vBat);
-    setIRefsCounter = 0;
-  } else
-    setIRefsCounter++;
-
   // BMS mode finite state machine, which can switch BMS Modes or Output Modes and designates the appropriate error
 
-  // BMS Mode: FOLLOWCHARGE: charge the battery in grid following mode
+// BMS Mode: FOLLOWCHARGE: charge the battery in grid following mode
   if (bmsMode == FOLLOWCHARGE) { // charge the battery in grid following mode
+    // disconnect if bus voltage is outside acceptable range
+    if (vBus > vBusMax) {
+      disconnect(FCHGBUSHIGH);
+      return;
+    } else if (vBus < vBusMin) {
+      disconnect(FCHGBUSLOW);
+      return;
+      // TODO: try to curtail current instead of just disconnecting; likely need to do multiple gradient steps
+    }
+    // update sliding reference currents based on the averaged battery voltage measured this cycle
+    if (setIRefsCounter > 500) { // slide the reference currents slowly to avoid inrush and instabilities
+      setIRefs(vBat);
+      setIRefsCounter = 0;
+    } else
+      setIRefsCounter++;
+    // if battery controller is triggered to auto-switch from FCHG to FORM, check if battery voltage threshold is met
+    if (vBat > fchgFormThreshold) {
+      setupMode(FORM);
+      return;
+    }
     // Output Mode: FSM state change
     if (outputMode == CC2 && vBat > vBatMax) { // switch to CV if battery voltage exceeds max battery voltage
       outputMode = CV2;
@@ -200,25 +225,29 @@ void controlUpdate(void)
       atverter.resetComp();
     }
     // Output Mode: determine error based on output mode state
-    if (vBus < vBusMin) { // bus voltage is too low; disconnect so as to attempt to avoid losing control
-      disconnect(FCHGBUSLOW);
-      return;
-    // } else if (vBus < vBusMin)  { // if bus voltage falls below min value, we're charging too much; rapid curtail current
-    //   iBatChgRef = iBatChgRef - 1;
-    //   if (iBatChgRef < 0)
-    //     iBatChgRef = 0;
-    //   error = - iBat;
-    //   atverter.setDutyCycle(atverter.getDutyCycle() - 2);
-    //   atverter.triggerGradDescStep();
-    } else if (outputMode == CC2) { // constant current operation
+    if (outputMode == CC2) { // constant current operation
       error = iBatChgRef - iBat; // error is difference between reference charge current limit and battery current
     } else { // constant voltage operation
       error = vBatMax - vBat; // error is difference between max battery voltage and measured battery voltage
     }
   }
-  // BMS Mode: FOLLOWDISCHARGE: discharge the battery in grid following mode
+// BMS Mode: FOLLOWDISCHARGE: discharge the battery in grid following mode
   else if (bmsMode == FOLLOWDISCHARGE) {
-    // TODO: if (vBus > vBusMax), either decrease iBatDisRef, or run in CV1 mode at vBusMax, or revert to HOLD mode
+    // disconnect if bus voltage is outside acceptable range
+    if (vBus > vBusMax) {
+      disconnect(FDISBUSHIGH);
+      return;
+      // TODO: if (vBus > vBusMax), either decrease iBatDisRef, or run in CV1 mode at vBusMax, or revert to HOLD mode
+    } else if (vBus < vBusMin) {
+      disconnect(FDISBUSLOW);
+      return;
+    }
+    // update sliding reference currents based on the averaged battery voltage measured this cycle
+    if (setIRefsCounter > 500) { // slide the reference currents slowly to avoid inrush and instabilities
+      setIRefs(vBat);
+      setIRefsCounter = 0;
+    } else
+      setIRefsCounter++;
     // Output Mode: FSM state change
     if (outputMode == CC2 && vBat < vBatMin) { // switch to CV if battery voltage goes below min battery voltage
       outputMode = CV2;
@@ -228,21 +257,25 @@ void controlUpdate(void)
       atverter.resetComp();
     }
     // Output Mode: determine error based on output mode state
-    if (vBus < vBusMin) { // bus voltage is too high; disconnect so as to attempt to avoid losing control
-      disconnect(FDISBUSHIGH);
-      return;
-    } else if (outputMode == CC2) {
+    if (outputMode == CC2) {
       error = (-iBatDisRef - iBat); // error is difference between reference discharge current limit and battery current
         // e.g.: -iBatDisRef=-1, iBat=-0.6, error=-0.4, duty down, vBus up or vBat down, => |iBat| up
     } else {
       error = vBatMin - vBat; // error is difference between min battery voltage and measured battery voltage
     }
   }
-  // BMS Mode: FORM: have the battery grid from, i.e. attempt to regulate a DC bus
+// BMS Mode: FORM: have the battery grid from, i.e. attempt to regulate a DC bus
   else if (bmsMode == FORM) {
-    if (vBus > vBusMax) { // first, make sure you don't exceed the maximum allowable DC bus voltage
-      disconnect(FORMBUSHIGH); // if so, emergency revert to HOLD mode
+    // disconnect if bus voltage is outside acceptable range
+    if (vBus > vBusMax) {
+      disconnect(FORMBUSHIGH);
+      return;
+    } else if (vBus < vBusMin) {
+      disconnect(FORMBUSLOW);
+      return;
     }
+    // update sliding reference currents based on the averaged battery voltage measured this cycle
+    setIRefs(vBat);
     // Output Mode: FSM state change
     if ((outputMode == CV1 || outputMode == CC2) && vBat > vBatMax) {
       // is charging and hits battery max voltage limit
@@ -265,7 +298,7 @@ void controlUpdate(void)
       isCharging = false;
       atverter.resetComp();
     } else { // normal FORM operation, no apparent limits were hit
-      if ((iBat > -iBatDisRef/2 && iBat < iBatChgRef/2) || (vBat > vBat25 && vBat < vBat75))
+      if ((iBat > -iBatDisRef/2 && iBat < iBatChgRef/2) && (vBat > vBat25 && vBat < vBat75))
         // only switch back CV1 bus regulation mode once battery voltage and current are well outside their respective limits
         outputMode = CV1;
     }
@@ -284,56 +317,51 @@ void controlUpdate(void)
       }
     } else { // CV1: error regulates the bus voltage
       error = -(vBusRef - atverter.getVDroopRaw(iBus) - vBus); // negative sign required when terminal 1 is being controlled
-      // error = -(vBusRef - atverter.getVDroopRaw(iBus) - vBus); // negative sign required when terminal 1 is being controlled
     }
   }
-  // BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
+// BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
   else if (bmsMode == FORMCOLDSTART) {
-    if (vBus > vBat) { // if ever the bus voltage exceeds battery voltage, we no longer need to cold start
-      atverter.applyHoldHigh2(); // make sure we're in buck (step down) mode
-      bmsMode = FORM;
-      return;
-    }
+    // if (vBus > vBat) { // if ever the bus voltage exceeds battery voltage, we no longer need to cold start
+    //   atverter.applyHoldHigh2(); // make sure we're in buck (step down) mode
+    // }
     slowInterruptCounter++;
-    if (slowInterruptCounter == 5000) { // wait for 5 seconds for bus voltages to settle, e.g. after a restart
+    iBatChgRef = iBatChgLim;
+    iBatDisRef = iBatDisLim;
+    if (slowInterruptCounter == 2000) { // wait for 2 seconds for bus voltages to settle, e.g. after a restart
       atverter.applyHoldHigh1(); // set to boost mode, step up from terminal 1 (bus) to terminal 2 (battery)
-      atverter.setDutyCycle(90); // set duty cycle for a large step-up ratio, assuming bus voltage is near zero
-      atverter.startPWM();
-    } else if (slowInterruptCounter == 5200) { // every 200ms, reduce duty cycle, which increases bus voltage
+      atverter.startPWM(90); // set duty cycle for a large step-up ratio, assuming bus voltage is near zero
+    } else if (slowInterruptCounter == 2200) { // every 200ms, reduce duty cycle, which increases bus voltage
       atverter.setDutyCycle(70);
-    } else if (slowInterruptCounter == 5400) {
+    } else if (slowInterruptCounter == 2400) {
       atverter.setDutyCycle(50);
-    } else if (slowInterruptCounter == 5600) {
+    } else if (slowInterruptCounter == 2600) {
       atverter.setDutyCycle(30);
-    } else if (slowInterruptCounter == 5800) {
+    } else if (slowInterruptCounter == 2800) {
       atverter.setDutyCycle(10);
-    } else if (slowInterruptCounter == 6000) {
+    } else if (slowInterruptCounter == 3000) {
       atverter.applyHoldHigh2(); // once bus voltage nearly equals battery voltage, switch to buck (step down) mode
       atverter.setDutyCycle(90); // set duty cycle for a small step-down ratio
-    } else if (slowInterruptCounter > 6500) { // after 500ms, switch to grid-forming mode
-      bmsMode = FORM;
+    } else if (slowInterruptCounter > 3500) {
+      if (vBus < vBusRef) {
+        atverter.setDutyCycle(atverter.getDutyCycle() - 1);
+        slowInterruptCounter = slowInterruptCounter - 100;
+      } else
+        bmsMode = FORM;
     }
     return; // we skip everything else in the control loop since FORMCOLDSTART is explicitly hard coded
   }
-  // BMS Mode: HOLD: have the battery hold; will not charge or discharge
-  // else if (bmsMode == HOLD) {
-  //   // in HOLD mode, you may instead want to shutdown the gates, which could save power and prevent leakage
-  //   outputMode = CC2;
-  //   error = 0 - iBat;
-  //   if (vBus < vBat && !atverter.isGateShutdown())
-  //     // shutdown gates if the bus goes below battery level (which would otherwise drain the battery)
-  //     atverter.shutdownGates();
-  // }
-  // BMS Mode: HOLD: have the battery hold; will not charge or discharge
+// BMS Mode: DISCONNECT: the Atverter is disconnected, but can reconnect given various conditions
   else {
     iBatChgRef = 0;
     iBatDisRef = 0;
     if (disconnectCondition == FCHGBUSLOW) {
       if (vBus > vBusMin) {
-        atverter.setDutyCycle(1);
-        if(atverter.isGateShutdown())
-          atverter.enableGateDrivers();
-        bmsMode = FOLLOWCHARGE;
+        setupMode(FOLLOWCHARGE);
+        disconnectCondition = CLEAR;
+      }
+    } else if (disconnectCondition == FCHGBUSHIGH) {
+      if (vBus < vBusMax) {
+        setupMode(FOLLOWCHARGE);
         disconnectCondition = CLEAR;
       }
     }
@@ -413,14 +441,60 @@ void controlUpdate(void)
     Serial.print(", ccnt:");
     Serial.print(coulombCounter);
     Serial.print(", gsd:");
-    Serial.println(atverter.getShutdownCode());
+    Serial.print(atverter.getShutdownCode());
+    Serial.print(", dc:");
+    Serial.println(disconnectCondition);
   }
 }
 
 void disconnect(int dcCondition) {
-  disconnectCondition = dcCondition; // equivalent to 10 seconds assuming 1ms updates
+  disconnectCondition = dcCondition;
   bmsMode = DISCONNECT;
   atverter.shutdownGates(4);
+}
+
+void setupMode(int desiredMode) {
+  int vBat = atverter.getRawV2();
+  int vBus = atverter.getRawV1();
+  switch(desiredMode) {
+    case FOLLOWCHARGE: // charge the battery in grid following mode
+      if (vBus > vBat) {
+        bmsMode = FOLLOWCHARGE;
+        outputMode = CC2;
+        iBatChgRef = 0;
+        atverter.startPWM((long)100*vBat/vBus);
+      } else {
+        disconnect(STARTBUSLOW);
+      }
+      break;
+    case FOLLOWDISCHARGE: // discharge the battery in grid following mode
+      if (vBus > vBat) {
+        bmsMode = FOLLOWDISCHARGE;
+        outputMode = CC2;
+        iBatDisRef = 0;
+        atverter.startPWM((long)100*vBat/vBus);
+      } else {
+        disconnect(STARTBUSLOW);
+      }
+      break;
+    case FORM: // have the battery grid from, i.e. attempt to regulate a DC bus
+      if (vBus > vBat) {
+        bmsMode = FORM;
+        outputMode = CV1;
+        iBatChgRef = iBatChgLim;
+        iBatDisRef = iBatDisLim;
+        atverter.startPWM((long)100*vBat/vBus);
+      } else {
+        disconnect(STARTBUSLOW);
+      }
+      break;
+    case FORMCOLDSTART: // if the bus voltage is less than the battery voltage, must do a cold start for grid forming
+      bmsMode = FORMCOLDSTART;
+      outputMode = CV1;
+      break;
+    default:
+      disconnect(MANUAL);
+  }
 }
 
 // sets reference current limits (iBatXRef) based on absolute max currents (iBatXLim) and battery voltage (vBatX)
@@ -457,6 +531,14 @@ void setIRefs(int vBat) {
   }
 }
 
+
+
+
+
+
+
+
+
 // serial command interpretation function
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RFN") == 0) {
@@ -492,29 +574,16 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 
 // sets the BMS operation mode from a serial command string: FCHG, FDIS, FORM, HOLD, FCS
 void writeMODE(const char* valueStr, int receiveProtocol) {
-  if(atverter.isGateShutdown())
-    atverter.enableGateDrivers();
-  int vBat = atverter.getRawV2();
-  int vBus = atverter.getRawV1();
   if (strcmp(valueStr, "FCHG") == 0) {
-    bmsMode = FOLLOWCHARGE;
-    outputMode = CC2;
-    iBatChgRef = 0;
-    atverter.setDutyCycle((long)100*vBat/vBus);
+    setupMode(FOLLOWCHARGE);
   } else if (strcmp(valueStr, "FDIS") == 0) {
-    bmsMode = FOLLOWDISCHARGE;
-    outputMode = CC2;
-    iBatDisRef = 0;
-    atverter.setDutyCycle((long)100*vBat/vBus);
+    setupMode(FOLLOWDISCHARGE);
   } else if (strcmp(valueStr, "FORM") == 0) {
-    bmsMode = FORM;
-    outputMode = CV1;
-    atverter.setDutyCycle((long)100*vBat/vBusRef);
+    setupMode(FORM);
   } else if (strcmp(valueStr, "FCS") == 0) {
-    bmsMode = FORMCOLDSTART;
-    outputMode = CV1;
+    setupMode(FORMCOLDSTART);
   } else { // DISCONNECT
-    disconnect(MANUAL);
+    setupMode(DISCONNECT);
   }
   sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:=%d", bmsMode);
   atverter.respondToMaster(receiveProtocol);

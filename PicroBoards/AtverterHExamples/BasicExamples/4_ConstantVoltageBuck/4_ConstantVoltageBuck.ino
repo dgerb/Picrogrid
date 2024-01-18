@@ -51,7 +51,8 @@ void setup() {
 
   atverter.setupPinMode(); // set pins to input or output
   atverter.initializeSensors(); // set filtered sensor values to initial reading
-  atverter.setCurrentShutdown(6000); // set gate shutdown at 6A peak current 
+  atverterH.setCurrentShutdown1(6000); // set gate shutdown at 6A peak current 
+  atverterH.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
   atverter.setThermalShutdown(60); // set gate shutdown at 60°C temperature
 
   // set discrete compensator coefficients for use in classical feedback compensation
