@@ -71,7 +71,7 @@ enum DisconnectConditions
 
 // specify the absolute max battery values, from battery datasheet
 const unsigned int VBATMAX = 14000; // max battery voltage in mV
-const unsigned int VBATMIN = 10000; // min battery voltage in mV
+const unsigned int VBATMIN = 11000; // min battery voltage in mV
 const int IBATCHGMAX = 3000; // max battery charging current in mA
 const int IBATDISMAX = 5000; // max battery discharging current in mA
 const unsigned int VBUSMAX = 32000; // max bus voltage in FORM mode
@@ -79,13 +79,13 @@ const unsigned int VBUSMIN = 16000; // min bus voltage in FOLLOWCHARGE mode
 
 // default starting values for several BMS variables
 int bmsMode = FOLLOWCHARGE;
-const int ICHGDEFAULT = 1000; // default charging current
+const int ICHGDEFAULT = 200; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
 const unsigned int RDROOP = 200; // default droop resistance (mohms) in FORM mode
 
 // operation in a microgrid
 const unsigned int VBUSDEFAULT = 24000; // FORM mode default bus voltage in mV, must be greater than battery voltage
-const unsigned int FCHGFORMTHRESHOLD = 12000; // switch from Follow Charge to Form when battery voltage goes above this threshold
+const unsigned int FCHGFORMTHRESHOLD = 12500; // switch from Follow Charge to Form when battery voltage goes above this threshold
                                               // to disable the switch from FCHG to FORM, set this number higher than VBATMAX
 
 // BMS global variables
@@ -354,6 +354,34 @@ void controlUpdate(void)
   else {
     iBatChgRef = 0;
     iBatDisRef = 0;
+    switch(disconnectCondition) {
+      case FCHGBUSLOW:
+        if (vBus > vBusMin && vBus < vBusMax) {
+          setupMode(FOLLOWCHARGE);
+          disconnectCondition = CLEAR;
+        }
+        break;
+      case FCHGBUSHIGH:
+        if (vBus > vBusMin && vBus < vBusMax) {
+          setupMode(FOLLOWCHARGE);
+          disconnectCondition = CLEAR;
+        }
+        break;
+      case FORMBUSLOW:
+        if (vBus > vBusMin && vBus < vBusMax) {
+          setupMode(FOLLOWCHARGE);
+          disconnectCondition = CLEAR;
+        }
+        break;
+      case FORMBUSHIGH:
+        if (vBus > vBusMin && vBus < vBusMax) {
+          setupMode(FOLLOWCHARGE);
+          disconnectCondition = CLEAR;
+        }
+        break;
+      default:
+        break;
+    }
     if (disconnectCondition == FCHGBUSLOW) {
       if (vBus > vBusMin) {
         setupMode(FOLLOWCHARGE);
@@ -364,6 +392,8 @@ void controlUpdate(void)
         setupMode(FOLLOWCHARGE);
         disconnectCondition = CLEAR;
       }
+    } else if (disconnectCondition == FORMBUSLOW) {
+
     }
   }
 
