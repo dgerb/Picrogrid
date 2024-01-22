@@ -1,5 +1,5 @@
 /*
-  BMS
+  Battery Converter
 
   WARNING: Never use unprotected batteries... ever. You will burn down your home.
 
@@ -36,8 +36,8 @@
   Grid forming mode also uses the four control limits and interpolation to ensure the battery is not abused. When the
   battery voltage and current are within the limits, the controller will instead regulate the terminal 1 bus voltage
   as best as it can. With proper droop resistance (not included in this example), one could conceivably attach
-  multiple grid forming BMS Atverters to co-regulate the same DC bus. One challenge of grid forming is that on a cold
-  start, the bus voltage is near zero, while the battery voltage is fixed at a higher value. Thus we must operate the
+  multiple grid forming Battery Converter Atverters to co-regulate the same DC bus. One challenge of grid forming is that on 
+  a cold start, the bus voltage is near zero, while the battery voltage is fixed at a higher value. Thus we must operate the
   Atverter in boost mode instead of buck so as to jump start the bus voltage before converting to buck mode. I honestly
   have no idea what's the proper way to do this, but I was able to hard code a cold-start routine that seems to work.
 
@@ -47,13 +47,13 @@
 #include <AtverterH.h>
 AtverterH atverter;
 
-enum BMSModes
+enum BatteryModes
 {   FOLLOWCHARGE = 0, // charge the battery in grid following mode
     FOLLOWDISCHARGE = 1, // discharge the battery in grid following mode
     FORM = 2, // have the battery grid from, i.e. attempt to regulate a DC bus
     FORMCOLDSTART = 3, // if the bus voltage is less than the battery voltage, must do a cold start for grid forming
     DISCONNECT = 4,
-    NUM_BMSMODES
+    NUM_BATTERYMODES
 };
 
 enum DisconnectConditions
@@ -77,8 +77,8 @@ const int IBATDISMAX = 5000; // max battery discharging current in mA
 const unsigned int VBUSMAX = 32000; // max bus voltage in FORM mode
 const unsigned int VBUSMIN = 16000; // min bus voltage in FOLLOWCHARGE mode
 
-// default starting values for several BMS variables
-int bmsMode = FOLLOWCHARGE;
+// default starting values for several Battery Converter variables
+int batteryMode = FOLLOWCHARGE;
 const int ICHGDEFAULT = 200; // default charging current
 const int IDISDEFAULT = 1500; // default discharging current
 const unsigned int RDROOP = 200; // default droop resistance (mohms) in FORM mode
@@ -88,7 +88,7 @@ const unsigned int VBUSDEFAULT = 24000; // FORM mode default bus voltage in mV, 
 const unsigned int FCHGFORMTHRESHOLD = 12500; // switch from Follow Charge to Form when battery voltage goes above this threshold
                                               // to disable the switch from FCHG to FORM, set this number higher than VBATMAX
 
-// BMS global variables
+// Battery Converter global variables
 unsigned int vBusRef = 0; // reference terminal 1 voltage setpoint (raw 0-1023); nominal bus voltage
 unsigned int vBusMax = 0; // max bus voltage in FORM mode
 unsigned int vBusMin = 0; // min bus voltage in FOLLOWCHARGE mode
@@ -100,9 +100,9 @@ int iBatChgLim = 0; // peak charging current limit
 int iBatDisLim = 0; // peak discharge current limit
 int iBatChgRef = 0; // sliding charging current limit
 int iBatDisRef = 0; // sliding discharge current limit
-unsigned int fchgFormThreshold = 0; // battery voltage threshold above which BMS switches from FCHG to FORM if enabled
+unsigned int fchgFormThreshold = 0; // battery voltage threshold above which Battery Converter switches from FCHG to FORM if enabled
 
-// BMS algorithm interpolation slopes
+// Battery Converter algorithm interpolation slopes
 // reference charge current = 0 + (vBatMax - vBat)*chgInterpSlope
 //   = 0 + (iBatChgLim - 0) * ((vBatMax - vBat)/(vBatMax - vBat75));
 // reference discharge current = 0 + (vBat - vBatMin)*disInterpSlope
@@ -163,7 +163,7 @@ void setup() {
   atverter.applyHoldHigh2();
 
   // once all is said and done, set the proper duty cycle and start the PWM
-  setupMode(bmsMode);
+  setupMode(batteryMode);
 
   // finally let the periodic control algorithm begin
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
@@ -192,10 +192,10 @@ void controlUpdate(void)
   // update the sub-second raw coulomb counter accumulator
   ccntAccumulator += iBat;
 
-  // BMS mode finite state machine, which can switch BMS Modes or Output Modes and designates the appropriate error
+  // Battery Converter mode finite state machine, can switch Battery Converter Modes or Output Modes for appropriate error
 
-// BMS Mode: FOLLOWCHARGE: charge the battery in grid following mode
-  if (bmsMode == FOLLOWCHARGE) { // charge the battery in grid following mode
+// Battery Converter Mode: FOLLOWCHARGE: charge the battery in grid following mode
+  if (batteryMode == FOLLOWCHARGE) { // charge the battery in grid following mode
     // disconnect if bus voltage is outside acceptable range
     if (vBus > vBusMax) {
       disconnect(FCHGBUSHIGH);
@@ -231,8 +231,8 @@ void controlUpdate(void)
       error = vBatMax - vBat; // error is difference between max battery voltage and measured battery voltage
     }
   }
-// BMS Mode: FOLLOWDISCHARGE: discharge the battery in grid following mode
-  else if (bmsMode == FOLLOWDISCHARGE) {
+// Battery Converter Mode: FOLLOWDISCHARGE: discharge the battery in grid following mode
+  else if (batteryMode == FOLLOWDISCHARGE) {
     // disconnect if bus voltage is outside acceptable range
     if (vBus > vBusMax) {
       disconnect(FDISBUSHIGH);
@@ -264,8 +264,8 @@ void controlUpdate(void)
       error = vBatMin - vBat; // error is difference between min battery voltage and measured battery voltage
     }
   }
-// BMS Mode: FORM: have the battery grid from, i.e. attempt to regulate a DC bus
-  else if (bmsMode == FORM) {
+// Battery Converter Mode: FORM: have the battery grid from, i.e. attempt to regulate a DC bus
+  else if (batteryMode == FORM) {
     // disconnect if bus voltage is outside acceptable range
     if (vBus > vBusMax) {
       disconnect(FORMBUSHIGH);
@@ -319,8 +319,8 @@ void controlUpdate(void)
       error = -(vBusRef - atverter.getVDroopRaw(iBus) - vBus); // negative sign required when terminal 1 is being controlled
     }
   }
-// BMS Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
-  else if (bmsMode == FORMCOLDSTART) {
+// Battery Converter Mode: FORMCOLDSTART: if bus voltage < battery voltage, must do a hard-coded cold start before grid forming
+  else if (batteryMode == FORMCOLDSTART) {
     // if (vBus > vBat) { // if ever the bus voltage exceeds battery voltage, we no longer need to cold start
     //   atverter.applyHoldHigh2(); // make sure we're in buck (step down) mode
     // }
@@ -346,16 +346,17 @@ void controlUpdate(void)
         atverter.setDutyCycle(atverter.getDutyCycle() - 1);
         slowInterruptCounter = slowInterruptCounter - 100;
       } else
-        bmsMode = FORM;
+        batteryMode = FORM;
     }
     return; // we skip everything else in the control loop since FORMCOLDSTART is explicitly hard coded
   }
-// BMS Mode: DISCONNECT: the Atverter is disconnected, but can reconnect given various conditions
+// Battery Converter Mode: DISCONNECT: the Atverter is disconnected, but can reconnect given various conditions
   else {
     iBatChgRef = 0;
     iBatDisRef = 0;
     switch(disconnectCondition) {
       case FCHGBUSLOW:
+      case STARTBUSLOW:
         if (vBus > vBusMin && vBus < vBusMax) {
           setupMode(FOLLOWCHARGE);
           disconnectCondition = CLEAR;
@@ -404,7 +405,7 @@ void controlUpdate(void)
   // Note: the compensation.py calculator only works for CR or CC loads, not for CV like batteries
   // TODO: update compensation.py for batteries, then we can use classical feedback in grid-following modes
   bool isClassicalFB = false;
-  if (bmsMode == FORM && outputMode == CV1) { // only use for bus regulation in grid forming
+  if (batteryMode == FORM && outputMode == CV1) { // only use for bus regulation in grid forming
     // 0.5A-5A output: classical feedback voltage mode discrete compensation
     // 0A-0.5A output: slow gradient descent mode
     isClassicalFB = atverter.getRawI1() < -51 || atverter.getRawI1() > + 51;
@@ -431,7 +432,7 @@ void controlUpdate(void)
     ccntAccumulator = 0;
 
     Serial.print("BMo:");
-    Serial.print(bmsMode);
+    Serial.print(batteryMode);
     Serial.print(", OMo:");
     Serial.print(outputMode);
     Serial.print(", dut:");
@@ -479,7 +480,7 @@ void controlUpdate(void)
 
 void disconnect(int dcCondition) {
   disconnectCondition = dcCondition;
-  bmsMode = DISCONNECT;
+  batteryMode = DISCONNECT;
   atverter.shutdownGates(4);
 }
 
@@ -489,7 +490,7 @@ void setupMode(int desiredMode) {
   switch(desiredMode) {
     case FOLLOWCHARGE: // charge the battery in grid following mode
       if (vBus > vBat) {
-        bmsMode = FOLLOWCHARGE;
+        batteryMode = FOLLOWCHARGE;
         outputMode = CC2;
         iBatChgRef = 0;
         atverter.startPWM((long)100*vBat/vBus);
@@ -499,7 +500,7 @@ void setupMode(int desiredMode) {
       break;
     case FOLLOWDISCHARGE: // discharge the battery in grid following mode
       if (vBus > vBat) {
-        bmsMode = FOLLOWDISCHARGE;
+        batteryMode = FOLLOWDISCHARGE;
         outputMode = CC2;
         iBatDisRef = 0;
         atverter.startPWM((long)100*vBat/vBus);
@@ -509,7 +510,7 @@ void setupMode(int desiredMode) {
       break;
     case FORM: // have the battery grid from, i.e. attempt to regulate a DC bus
       if (vBus > vBat) {
-        bmsMode = FORM;
+        batteryMode = FORM;
         outputMode = CV1;
         iBatChgRef = iBatChgLim;
         iBatDisRef = iBatDisLim;
@@ -519,7 +520,7 @@ void setupMode(int desiredMode) {
       }
       break;
     case FORMCOLDSTART: // if the bus voltage is less than the battery voltage, must do a cold start for grid forming
-      bmsMode = FORMCOLDSTART;
+      batteryMode = FORMCOLDSTART;
       outputMode = CV1;
       break;
     default:
@@ -598,11 +599,11 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
 
 // outputs the file name to serial
 void readFileName(const char* valueStr, int receiveProtocol) {
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WFN:%s", "BMS.ino");
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WFN:%s", "BatteryConverter.ino");
   atverter.respondToMaster(receiveProtocol);
 }
 
-// sets the BMS operation mode from a serial command string: FCHG, FDIS, FORM, HOLD, FCS
+// sets the Battery Converter operation mode from a serial command string: FCHG, FDIS, FORM, HOLD, FCS
 void writeMODE(const char* valueStr, int receiveProtocol) {
   if (strcmp(valueStr, "FCHG") == 0) {
     setupMode(FOLLOWCHARGE);
@@ -615,19 +616,19 @@ void writeMODE(const char* valueStr, int receiveProtocol) {
   } else { // DISCONNECT
     setupMode(DISCONNECT);
   }
-  sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:=%d", bmsMode);
+  sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:=%d", batteryMode);
   atverter.respondToMaster(receiveProtocol);
 }
 
-// gets the BMS operation mode and outputs to serial
+// gets the Battery Converter operation mode and outputs to serial
 void readMODE(const char* valueStr, int receiveProtocol) {
-  if (bmsMode == FOLLOWCHARGE)
+  if (batteryMode == FOLLOWCHARGE)
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FCHG");
-  else if (bmsMode == FOLLOWDISCHARGE)
+  else if (batteryMode == FOLLOWDISCHARGE)
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FDIS");
-  else if (bmsMode == FORM)
+  else if (batteryMode == FORM)
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FORM");
-  else if (bmsMode == FORMCOLDSTART)
+  else if (batteryMode == FORMCOLDSTART)
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:FCS");
   else
     sprintf(atverter.getTXBuffer(receiveProtocol), "WMODE:DISC");
