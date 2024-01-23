@@ -15,6 +15,9 @@
 # 4. Run the ~/Picrogrid/RaspberryPi/Setup/SetupRaspberryPi.sh script if necessary
 # 5. Run this script on the Raspberry Pi
 
+# Enable I2C
+sudo raspi-config nonint do_i2c 0
+
 # Set the Atmega328P Fuses
 # sometimes you'll need to set the fuses twice; need to experiment with this
 sudo avrdude -c linuxgpio26 -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m

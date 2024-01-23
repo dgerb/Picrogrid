@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
+# first enable I2C: sudo raspi-config
+# also install smbus2: pip3 install smbus2
+# optionally install i2c-tools: sudo apt install i2c-tools
+# check I2C connections with: sudo i2cdetect -y 1
+
+# if I2C bus gets corrupted:
+# sudo rmmod i2c_dev
+# sudo rmmod i2c_bcm2835
+# sudo modprobe i2c_bcm2835
+# sudo modprobe i2c_dev
+
 # to start a session through ssh and log off:
 # sudo apt install tmux
 # tmux
@@ -48,13 +59,13 @@ sleep(2) # Give the I2C device time to settle
 
 header = "Year,Month,Day,Hour,Minute,Second," + \
         "SolarV1,SolarI1,SolarV2,SolarI2," + \
-        "BMSV1,BMSI1,BMSV2,BMSI2," + \
+        "BatteryV1,BatteryI1,BatteryV2,BatteryI2," + \
         "SupplyV1,SupplyI1,SupplyV2,SupplyI2"
 print(header)
 with open(fileName, 'w') as the_file:
     the_file.write(header + '\n')
-# addresses = [solarAddress, bmsAddress, supplyAddress]
-addresses = [supplyAddress]
+addresses = [solarAddress, bmsAddress, supplyAddress]
+# addresses = [supplyAddress]
 commands = [["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"], \
             ["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"], \
             ["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"] \
@@ -68,15 +79,18 @@ while True:
         address = addresses[n]
         commandSet = commands[n]
         for command in commandSet:
-            byteValue = StringToBytes(command) # I2C requires bytes
-            bus.write_i2c_block_data(address, 0x00, byteValue) # Send the byte packet to the slave.
-            data = bus.read_i2c_block_data(address, 0x00, 32) # Send a register byte to slave with request flag.
-            outString = ""
-            for n in data:
-                if n==255: # apparently this is the python char conversion result of '\0' in C++
-                    break
-                outString = outString + chr(n) # assemble the byte result as a string to print
-            line = line + ',' + parseValueStr(outString)
+            try:
+                byteValue = StringToBytes(command) # I2C requires bytes
+                bus.write_i2c_block_data(address, 0x00, byteValue) # Send the byte packet to the slave.
+                data = bus.read_i2c_block_data(address, 0x00, 32) # Send a register byte to slave with request flag.
+                outString = ""
+                for n in data:
+                    if n==255: # apparently this is the python char conversion result of '\0' in C++
+                        break
+                    outString = outString + chr(n) # assemble the byte result as a string to print
+                line = line + ',' + parseValueStr(outString)
+            except:
+                line = line + ',' + '???'
             sleep(0.2)
     print(line)
     with open(fileName, 'a') as the_file:
