@@ -2,19 +2,15 @@
 
 # first enable I2C: sudo raspi-config
 # also install smbus2: pip3 install smbus2
+
 # optionally install i2c-tools: sudo apt install i2c-tools
 # check I2C connections with: sudo i2cdetect -y 1
-
-# if I2C bus gets corrupted:
-# sudo rmmod i2c_dev
-# sudo rmmod i2c_bcm2835
-# sudo modprobe i2c_bcm2835
-# sudo modprobe i2c_dev
+# note that the Atverters won't show up, but this can test the health of the I2C bus
 
 # to start a session through ssh and log off:
 # sudo apt install tmux
 # tmux
-# python3 printVICSV.py printVI.csv &
+# python3 ~/Picrogrid/RaspberryPi/CoreExamples/MicrogridMonitored/Monitor.py &
 # <ctrl+b and $ (to name session)>
 # <ctrl+b and d (to exit tmux)>
 
@@ -31,6 +27,8 @@ import sys
 from datetime import datetime
 import csv
 import smbus2
+import os
+import RPi.GPIO as GPIO
 
 fileName = 'output.csv'
 solarAddress = 0x01
@@ -54,6 +52,7 @@ def parseValueStr(message):
         return valueStr
 
 print("Remember to make sure I2C is enabled in raspi-config.")
+GPIO.setmode(GPIO.BCM)
 bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
@@ -72,6 +71,7 @@ commands = [["RV1:\n", "RI1:\n", "RV2:\n", "RI2:\n"], \
             ]
 
 while True:
+    failureCounter = 0
     now = datetime.now() # current date and time
     line = ''
     line = now.strftime("%Y,%m,%d,%H,%M,%S")
@@ -82,6 +82,7 @@ while True:
             try:
                 byteValue = StringToBytes(command) # I2C requires bytes
                 bus.write_i2c_block_data(address, 0x00, byteValue) # Send the byte packet to the slave.
+                sleep(0.2)
                 data = bus.read_i2c_block_data(address, 0x00, 32) # Send a register byte to slave with request flag.
                 outString = ""
                 for n in data:
@@ -91,10 +92,35 @@ while True:
                 line = line + ',' + parseValueStr(outString)
             except:
                 line = line + ',' + '???'
+                failureCounter = failureCounter + 1
             sleep(0.2)
     print(line)
     with open(fileName, 'a') as the_file:
         the_file.write(line + '\n')
-    sleep(2.6)
-
-    
+    if failureCounter > 10: # if too many i2c communications exceptions, i2c bus is likely stuck and must be reset
+        print("resetting Atverters in order to clear the I2C bus...\n")
+        pin = 26
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+        pin = 19
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+        pin = 13
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+        # os.system('echo 26 > /sys/class/gpio/unexport')
+        # os.system('sudo avrdude -c linuxgpio26 -p atmega328p -v')
+        # sleep(2)
+        # os.system('echo 19 > /sys/class/gpio/unexport')
+        # os.system('sudo avrdude -c linuxgpio19 -p atmega328p -v')
+        # sleep(2)
+        # os.system('echo 13 > /sys/class/gpio/unexport')
+        # os.system('sudo avrdude -c linuxgpio13 -p atmega328p -v')
+        # sleep(2)
+    sleep(0.2)

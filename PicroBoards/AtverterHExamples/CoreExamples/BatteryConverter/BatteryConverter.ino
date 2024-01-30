@@ -90,8 +90,8 @@ const unsigned int FCHGFORMTHRESHOLD = 12500; // switch from Follow Charge to Fo
 
 // Battery Converter global variables
 unsigned int vBusRef = 0; // reference terminal 1 voltage setpoint (raw 0-1023); nominal bus voltage
-unsigned int vBusMax = 0; // max bus voltage in FORM mode
-unsigned int vBusMin = 0; // min bus voltage in FOLLOWCHARGE mode
+unsigned int vBusMax = 0; // max bus voltage before disconnect
+unsigned int vBusMin = 0; // min bus voltage before disconnect
 unsigned int vBatMax = 0; // max battery voltage
 unsigned int vBatMin = 0; // min battery voltage
 unsigned int vBat25 = 0; // 25% battery voltage
@@ -667,7 +667,7 @@ void writeIDIS(const char* valueStr, int receiveProtocol) {
 
 // gets the battery discharging current limit (mA) and outputs to serial
 void readIDIS(const char* valueStr, int receiveProtocol) {
-  unsigned int temp = atverter.mA2raw(iBatDisLim);
+  unsigned int temp = atverter.raw2mA(iBatDisLim);
   sprintf(atverter.getTXBuffer(receiveProtocol), "WIDIS:%d", temp);
   atverter.respondToMaster(receiveProtocol);
 }

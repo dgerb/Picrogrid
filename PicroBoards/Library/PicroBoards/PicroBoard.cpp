@@ -101,7 +101,7 @@ void PicroBoard::startI2C(int address, ReceiveEventI2C receiveCallback, RequestE
 
 // function to handle when an I2C message comes in
 void PicroBoard::receiveEventI2C(int howMany) {
-  Serial.println("received");
+  // Serial.println("received");
   for (int i = 0; i < howMany; i++) {
     _rxBufferI2C[i] = Wire.read();
     _rxBufferI2C[i + 1] = '\0'; //add null after ea. char
@@ -113,7 +113,7 @@ void PicroBoard::receiveEventI2C(int howMany) {
 }
 
 void PicroBoard::requestEventI2C() {
-  Serial.println("requested");
+  // Serial.println("requested");
   Wire.write(_txBuffer[I2C_INDEX]);
   _txBuffer[I2C_INDEX][0] = '\0';
 }
