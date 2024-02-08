@@ -23,7 +23,9 @@ void setup() {
   atverterH.initializeSensors(); // set filtered sensor values to initial reading
   atverterH.setCurrentShutdown1(6000); // set gate shutdown at 6A peak current 
   atverterH.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
-  atverterH.setThermalShutdown(60); // set gate shutdown at 60°C temperature
+  atverterH.setThermalShutdown(80); // set gate shutdown at 60°C temperature
+
+  atverterH.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
 
   atverterH.startPWM(50); // start PWM with 50% duty cycle (V1 = V2)
   // usually you want to start the PWM before the interrupt timer is intialized

@@ -1,4 +1,4 @@
-# PicroBoard Libraries
+# PicroBoard Library Overview
 
 PicroBoards are Picrogrid's ATmega328p based circuit boards, all of which are compatible with the Raspberry Pi and Arduino platforms. This folder contains Arduino/AVR C++ code that can be run on the ATmega328p microcontroller. The classes include:
 - PicroBoard - base class for all boards in the Picrogrid ecosystem. Contains functions that simplify communication between the board and a Raspberry Pi, including UART and I2C protocols.
@@ -17,18 +17,22 @@ The PicroBoard libraries require several more third-party libraries to function.
 - 2. Search for the proper library name
 - 3. Once found, select the latest version and click Install. 
 
+# Specific Library Dependancies
+
+For each PicroBoard family library, install the following dependancies.
+
 ## PicroBoard.h
 
 Requires the following:
 - Arduino.h - Already loaded into Arduino IDE
-- Wire.h - Sketch > Include Library > Manage Libraries...
+- Wire.h - Sketch > Include Library > Manage Libraries... (OneWire)
 
 ## AtverterH.h
 
 Requires the following:
 - PicroBoard.h - Loaded into Arduino IDE above
-- TimerOne.h - Sketch > Include Library > Manage Libraries...
-- avdweb_AnalogReadFast.h - Sketch > Include Library > Manage Libraries...
+- TimerOne.h - Sketch > Include Library > Manage Libraries... (TimerOne)
+- avdweb_AnalogReadFast.h - Sketch > Include Library > Manage Libraries... (avdweb_AnalogReadFast)
 - FastPwmPin.h - Sketch > Include Library > Add .ZIP Library... (https://github.com/maxint-rd/FastPwmPin)
 
 
