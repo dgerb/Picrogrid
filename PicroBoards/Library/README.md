@@ -25,7 +25,7 @@ For each PicroBoard family library, install the following dependancies.
 
 Requires the following:
 - Arduino.h - Already loaded into Arduino IDE
-- Wire.h - Sketch > Include Library > Manage Libraries... (OneWire)
+- Wire.h - Already loaded into Arduino IDE
 
 ## AtverterH.h
 
