@@ -26,14 +26,16 @@ For each PicroBoard family library, install the following dependancies.
 Requires the following:
 - Arduino.h - Already loaded into Arduino IDE
 - Wire.h - Already loaded into Arduino IDE
+- PicroBoard.h - Sketch > Include Library > Add .ZIP Library... (PicroBoards.zip)
 
 ## AtverterH.h
 
 Requires the following:
-- PicroBoard.h - Loaded into Arduino IDE above
+- Atverter.h and Picroboards.h - Sketch > Include Library > Add .ZIP Library... (PicroBoards.zip)
 - TimerOne.h - Sketch > Include Library > Manage Libraries... (TimerOne)
 - avdweb_AnalogReadFast.h - Sketch > Include Library > Manage Libraries... (avdweb_AnalogReadFast)
 - FastPwmPin.h - Sketch > Include Library > Add .ZIP Library... (https://github.com/maxint-rd/FastPwmPin)
+- 
 
 
 

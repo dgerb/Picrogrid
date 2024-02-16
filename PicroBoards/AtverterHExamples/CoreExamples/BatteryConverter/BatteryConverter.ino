@@ -491,6 +491,7 @@ void setupMode(int desiredMode) {
     case FOLLOWCHARGE: // charge the battery in grid following mode
       if (vBus > vBat) {
         batteryMode = FOLLOWCHARGE;
+        disconnectCondition = CLEAR;
         outputMode = CC2;
         iBatChgRef = 0;
         atverter.startPWM((long)100*vBat/vBus);
@@ -501,6 +502,7 @@ void setupMode(int desiredMode) {
     case FOLLOWDISCHARGE: // discharge the battery in grid following mode
       if (vBus > vBat) {
         batteryMode = FOLLOWDISCHARGE;
+        disconnectCondition = CLEAR;
         outputMode = CC2;
         iBatDisRef = 0;
         atverter.startPWM((long)100*vBat/vBus);
@@ -511,6 +513,7 @@ void setupMode(int desiredMode) {
     case FORM: // have the battery grid from, i.e. attempt to regulate a DC bus
       if (vBus > vBat) {
         batteryMode = FORM;
+        disconnectCondition = CLEAR;
         outputMode = CV1;
         iBatChgRef = iBatChgLim;
         iBatDisRef = iBatDisLim;
@@ -521,6 +524,7 @@ void setupMode(int desiredMode) {
       break;
     case FORMCOLDSTART: // if the bus voltage is less than the battery voltage, must do a cold start for grid forming
       batteryMode = FORMCOLDSTART;
+      disconnectCondition = CLEAR;
       outputMode = CV1;
       break;
     default:
@@ -550,12 +554,16 @@ void setIRefs(int vBat) {
     tempDisRef = iBatDisLim;
   }
   // slowly change the actual reference current limit (iBatXRef) in direction of tempXRef
-  if (tempChgRef > iBatChgRef) {
+  if (iBatChgRef > iBatChgLim) {
+    iBatChgRef = iBatChgLim;
+  } else if (tempChgRef > iBatChgRef) {
     iBatChgRef = iBatChgRef + 1;
   } else {
     iBatChgRef = iBatChgRef - 1;
   }
-  if (tempDisRef > iBatDisRef) {
+  if (iBatDisRef > iBatDisLim) {
+    iBatDisRef = iBatDisLim;
+  } else if (tempDisRef > iBatDisRef) {
     iBatDisRef = iBatDisRef + 1;
   } else {
     iBatDisRef = iBatDisRef - 1;
