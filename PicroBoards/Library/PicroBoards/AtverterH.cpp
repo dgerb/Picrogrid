@@ -64,12 +64,18 @@ void AtverterH::initializeInterruptTimer(long periodus, void (*interruptFunction
 }
 
 // resets protection latch, enabling the gate drivers
-void AtverterH::enableGateDrivers() {
+void AtverterH::enableGateDrivers(int holdProtectMicroseconds) {
   digitalWrite(PRORESET_PIN, HIGH);
-  delayMicroseconds(500);
+  delayMicroseconds(holdProtectMicroseconds);
   digitalWrite(PRORESET_PIN, LOW);
   _shutdownCode = 0; // reset shutdown code (i.e. set to "hardware" shutdown)
 }
+
+// resets protection latch, enabling the gate drivers
+void AtverterH::enableGateDrivers() {
+  enableGateDrivers(3000);
+}
+
 
 // sets initial duty cycle and enables gate drivers
 // we recommend you use this in the setup function; ensures you set duty properly before enabling

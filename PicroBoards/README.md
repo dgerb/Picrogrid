@@ -1,4 +1,4 @@
-# AtverterH
+# Picrogrid Boards
 
 This folder contains Arduino/AVR C++ code that can be run on ATmega-based boards in the Picrogrid ecosystem, including:
 - Atverter Hobbyist Board (AtverterH) - a 48V 5A four-switch DC-DC converter with an ATmega-based digital controller

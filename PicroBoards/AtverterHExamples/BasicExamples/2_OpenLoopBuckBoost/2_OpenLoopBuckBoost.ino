@@ -1,3 +1,4 @@
+
 /*
   OpenLoopBuckBoost
 
@@ -25,7 +26,8 @@ void setup() {
   atverterH.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
   atverterH.setThermalShutdown(80); // set gate shutdown at 60°C temperature
 
-  atverterH.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
+  // atverterH.applyHoldHigh1(); // uncomment to hold side 1 high for a boost converter with side 1 input
+  // atverterH.applyHoldHigh2(); // uncomment to hold side 2 high for a buck converter with side 1 input
 
   atverterH.startPWM(50); // start PWM with 50% duty cycle (V1 = V2)
   // usually you want to start the PWM before the interrupt timer is intialized
@@ -70,13 +72,14 @@ void controlUpdate(void)
     Serial.println("°C");
     // in this example, sweep duty cycle between 40% and 60% in 5% increments every 1 second
     int dutyCycle = atverterH.getDutyCycle();
-    dutyCycle = dutyCycle + 5;
-    if (dutyCycle > 60)
-      dutyCycle = 40;
+    dutyCycle = dutyCycle + 2;
+    if (dutyCycle > 54)
+      dutyCycle = 46;
     atverterH.setDutyCycle(dutyCycle);
-    // int his example, set lights to alternate blink every 1 second
+    // in this example, set lights to alternate blink every 1 second
     atverterH.setLEDG(ledState);
     atverterH.setLEDY(!ledState);
     ledState = !ledState;
   }
 }
+

@@ -139,6 +139,7 @@ class AtverterH : public PicroBoard
     void initializeInterruptTimer(long periodus, // starts periodic control timer
       void (*interruptFunction)(void)); // inputs: period (ms), controller function reference
     void enableGateDrivers(); // resets protection latch, enabling the gate drivers
+    void enableGateDrivers(int holdProtectMicroseconds); // resets protection latch, enabling the gate drivers
     void startPWM(int initialDuty); // sets initial duty cycle and enables gate drivers
   // duty cycle
     void setDutyCycle(int dutyCycle); // sets duty cycle (0 to 100)
