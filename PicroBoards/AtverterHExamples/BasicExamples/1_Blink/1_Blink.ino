@@ -31,8 +31,8 @@ void controlUpdate(void)
   if (interruptCounter > 1000) {
     interruptCounter = 0;
     // int his example, set lights to alternate blink every 1 second
-    atverterH.setLEDG(ledState);
-    atverterH.setLEDY(!ledState);
+    atverterH.setLED2(ledState);
+    atverterH.setLED1(!ledState);
     ledState = !ledState;
   }
 }

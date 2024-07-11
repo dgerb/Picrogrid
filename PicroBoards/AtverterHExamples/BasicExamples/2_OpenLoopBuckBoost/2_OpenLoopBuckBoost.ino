@@ -77,8 +77,8 @@ void controlUpdate(void)
       dutyCycle = 46;
     atverterH.setDutyCycle(dutyCycle);
     // in this example, set lights to alternate blink every 1 second
-    atverterH.setLEDG(ledState);
-    atverterH.setLEDY(!ledState);
+    atverterH.setLED2(ledState);
+    atverterH.setLED1(!ledState);
     ledState = !ledState;
   }
 }

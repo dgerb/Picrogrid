@@ -18,8 +18,8 @@
 #include <avdweb_AnalogReadFast.h> // In Library Manager, search for "AnalogReadFast"
 
 // pins for turning on the LEDs
-const int LEDG_PIN = 2; // PD2
-const int LEDY_PIN = 4; // PD4
+const int LED2_PIN = 2; // PD2
+const int LED1_PIN = 4; // PD4
 
 // primary gate signal pin, with FastPWM duty cycle
 const int PWM_PIN = 3; // PD3
@@ -173,8 +173,8 @@ class AtverterH : public PicroBoard
     int getT2(); // returns the averaged Thermistor 2 value (°C)
   // diagnostics
     void setLED(int led, int state); // sets an LED to HIGH or LOW
-    void setLEDY(int state); // sets yellow LED to HIGH or LOW
-    void setLEDG(int state); // sets green LED to HIGH or LOW
+    void setLED1(int state); // sets LED1 (yellow) to HIGH or LOW
+    void setLED2(int state); // sets LED2 (green) to HIGH or LOW
   // safety
     void shutdownGates(); // immediately triggers the gate shutdown
     void shutdownGates(int errorCode); // immediately triggers the gate shutdown

@@ -21,8 +21,8 @@ void AtverterH::initialize() {
 
 // sets up the pin mode for all AtverterH pins
 void AtverterH::setupPinMode() {
-  pinMode(LEDG_PIN, OUTPUT);
-  pinMode(LEDY_PIN, OUTPUT);
+  pinMode(LED2_PIN, OUTPUT);
+  pinMode(LED1_PIN, OUTPUT);
   pinMode(PWM_PIN, OUTPUT);
   pinMode(ALT_PIN, OUTPUT);
   pinMode(VCTRL1_PIN, OUTPUT);
@@ -403,13 +403,13 @@ void AtverterH::setLED(int led, int state) {
 }
 
 // sets yellow LED to HIGH or LOW
-void AtverterH::setLEDY(int state) {
-  setLED(LEDY_PIN, state);
+void AtverterH::setLED1(int state) {
+  setLED(LED1_PIN, state);
 }
 
 // sets green LED to HIGH or LOW
-void AtverterH::setLEDG(int state) {
-  setLED(LEDG_PIN, state);
+void AtverterH::setLED2(int state) {
+  setLED(LED2_PIN, state);
 }
 
 // Safety -----------------------------------------------------------------
