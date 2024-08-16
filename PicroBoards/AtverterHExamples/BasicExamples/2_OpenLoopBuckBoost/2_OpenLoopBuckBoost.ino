@@ -43,6 +43,7 @@ void controlUpdate(void)
 {
   atverterH.updateVISensors(); // read voltage and current sensors and update moving average
   atverterH.checkCurrentShutdown(); // checks average current and shut down gates if necessary
+  atverterH.checkThermalShutdown(); // checks switch temperature and shut down gates if necessary
   atverterH.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
   // does nothing in this example, but needed for buck or boost mode
 
