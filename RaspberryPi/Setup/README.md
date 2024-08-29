@@ -1,6 +1,6 @@
 # Setup Instructions
 
-These instructions will allow you to set up an Atverter with a blank Atmega328P to be programmable via the USB TTL FTDI 5V cable from the Arduino environment. You will need a Raspberry Pi to flash the bootloader via SPI.
+These instructions will let you set up a Raspberry Pi to flash Atmega328P microcontroller on a PicroBoard. It allows you to flash the bootloader, enabling the PicroBoard to be programmable via the USB TTL FTDI 5V cable from the Arduino environment. It also sets up the Pi to program HEX code to the PicroBoard directly via the SPI pins.
 
 ## Flash Pi with BerryLan
 
@@ -52,5 +52,5 @@ To flash the bootloader, use the command:
   
 ~/Picrogrid/RaspberryPi/Setup/SetupBootloader.sh
 
-You can now program the Atverter with the USB TTL FTDI cable. This Pi can be used initialize future Atverters. To do so, you just need to run the AtverterSetup script.
+You can now program the PicroBoard with the USB TTL FTDI cable. This Pi can also be used initialize future PicroBoards with HEX code.
 
