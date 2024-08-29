@@ -70,15 +70,22 @@ GPIO.setmode(GPIO.BCM)
 bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
-header = "Year,Month,Day,Hour,Minute,Second," + \
-        "VBus,I1,I2,I3,I4,CH1,CH2,CH3,CH4"
+# turn on all channels first
+for channel in range(1, 4):
+    success = False
+    while not success:
+        [outString, success] = sendI2CCommand(panelAddress, "WCH"+channel+":\n")
+        sleep(0.2)
+
+# set up monitoring loop
+header = "Year,Month,Day,Hour,Minute,Second," + "VBus,I1,I2,I3,I4,CH1,CH2,CH3,CH4"
 print(header)
 with open(fileName, 'w') as the_file:
     the_file.write(header + '\n')
 addresses = [panelAddress]
-commands = [["RVB:\n", "RI1:\n", "RI2:\n", "RI3:\n", "RI4:\n", "RCH1:\n", "RCH2:\n", "RCH3:\n", \
-                "RCH4:\n", "RI1:\n", "RV2:\n", "RI2:\n"]]
+commands = [["RVB:\n", "RI1:\n", "RI2:\n", "RI3:\n", "RI4:\n", "RCH1:\n", "RCH2:\n", "RCH3:\n", "RCH4:\n"]]
 
+# main monitoring loop
 while True:
     failureCounter = 0
     now = datetime.now() # current date and time
