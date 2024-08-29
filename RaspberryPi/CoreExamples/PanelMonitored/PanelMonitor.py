@@ -74,7 +74,7 @@ sleep(2) # Give the I2C device time to settle
 for channel in range(1, 4):
     success = False
     while not success:
-        [outString, success] = sendI2CCommand(panelAddress, "WCH"+channel+":\n")
+        [outString, success] = sendI2CCommand(panelAddress, "WCH"+str(channel)+":\n")
         sleep(0.2)
 
 # set up monitoring loop
