@@ -57,12 +57,12 @@ echo ---------------------------------------------------------------------------
 echo 
 echo At this point, you can optionally test if a board is connected.
 echo To do so, copy one of the following commands, depending on Reset jumper position:
-echo sudo avrdude -c linuxgpio26 -p atmega328p -v
-echo sudo avrdude -c linuxgpio19 -p atmega328p -v
-echo sudo avrdude -c linuxgpio13 -p atmega328p -v
-echo sudo avrdude -c linuxgpio6 -p atmega328p -v
-echo sudo avrdude -c linuxgpio5 -p atmega328p -v
-echo sudo avrdude -c linuxgpio22 -p atmega328p -v
+echo sudo avrdude -c linuxgpio24 -p atmega328p -v
+echo sudo avrdude -c linuxgpio25 -p atmega328p -v
+echo sudo avrdude -c linuxgpio12 -p atmega328p -v
+echo sudo avrdude -c linuxgpio16 -p atmega328p -v
+echo sudo avrdude -c linuxgpio20 -p atmega328p -v
+echo sudo avrdude -c linuxgpio21 -p atmega328p -v
 
 echo
 echo Would you like to test a board connectivity? 
