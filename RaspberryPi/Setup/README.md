@@ -28,7 +28,7 @@ Using the IP Address you recorded, SSH into your Pi using the terminal command:
 
 ssh pi@[IP Address]
 
-The default password is "raspberry".
+The default password is "raspberry". Note that sometimes the BerryLan distribution uses "nymea" as the user, hostname, and password (accessible via: nymea@[IP Address]).
 
 ## Use these commands to download the code base:
 
