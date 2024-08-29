@@ -79,13 +79,6 @@ addresses = [panelAddress]
 commands = [["RVB:\n", "RI1:\n", "RI2:\n", "RI3:\n", "RI4:\n", "RCH1:\n", "RCH2:\n", "RCH3:\n", \
                 "RCH4:\n", "RI1:\n", "RV2:\n", "RI2:\n"]]
 
-
-byteValue = StringToBytes(command) # I2C requires bytes
-bus.write_i2c_block_data(address, 0x00, byteValue) # Send the byte packet to the slave.
-sleep(0.2)
-data = bus.read_i2c_block_data(address, 0x00, 32) # Send a register byte to slave with request flag.
-
-
 while True:
     failureCounter = 0
     now = datetime.now() # current date and time
