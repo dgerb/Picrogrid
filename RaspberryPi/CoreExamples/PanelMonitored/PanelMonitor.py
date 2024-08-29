@@ -73,8 +73,11 @@ sleep(2) # Give the I2C device time to settle
 # turn on all channels first
 for channel in range(1, 5):
     success = False
+    command = "WCH"+str(channel)+":1\n"
     while not success:
-        [outString, success] = sendI2CCommand(panelAddress, "WCH"+str(channel)+":1\n")
+        [outString, success] = sendI2CCommand(panelAddress, command)
+        if (outString[0:3] != "WCH"+str(channel)):
+            success = False
         sleep(0.2)
 
 # set up monitoring loop
