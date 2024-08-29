@@ -71,7 +71,7 @@ bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
 # turn on all channels first
-for channel in range(1, 4):
+for channel in range(1, 5):
     success = False
     while not success:
         [outString, success] = sendI2CCommand(panelAddress, "WCH"+str(channel)+":1\n")
