@@ -77,6 +77,7 @@ for channel in range(1, 5):
     while not success:
         [outString, success] = sendI2CCommand(panelAddress, command)
         if (outString[0:3] != "WCH"+str(channel)):
+            print(outString)
             success = False
         sleep(0.2)
 
