@@ -14,10 +14,11 @@ void MicroPanelH::initialize() {
   setupPinMode();
   shutdownChannels();
   initializeSensors();
-  setCurrentLimit1(6500); // set default current shutdown above 5A plus ripple
-  setCurrentLimit2(6500); // set default current shutdown above 5A plus ripple
-  setCurrentLimit3(6500); // set default current shutdown above 5A plus ripple
-  setCurrentLimit4(6500); // set default current shutdown above 5A plus ripple
+  setCurrentLimit1(6500); // set default current shutdown above 5A
+  setCurrentLimit2(6500); // set default current shutdown above 5A
+  setCurrentLimit3(6500); // set default current shutdown above 5A
+  setCurrentLimit4(6500); // set default current shutdown above 5A
+  setCurrentLimitTotal(22000); // set total default current shutdown above 20A
 }
 
 // sets up the pin mode for all MicroPanelH pins
@@ -185,6 +186,11 @@ int MicroPanelH::getRawI4() {
   return _sensorAverages[I4_INDEX];
 }
 
+// total current
+int MicroPanelH::getRawITotal() {
+  return getRawI1() + getRawI2() + getRawI3() + getRawI4();
+}
+
 // Fully-Formatted Sensor Accessor Functions --------------------------------------
 
 // returns the averaged VCC value
@@ -215,6 +221,11 @@ int MicroPanelH::getI3() {
 // returns the averaged I4 value in mA
 int MicroPanelH::getI4() {
   return raw2mA(getRawI4());
+}
+
+// returns the averaged total current value in mA
+int MicroPanelH::getITotal() {
+  return getI1() + getI2() + getI3() + getI4();
 }
 
 // Conversion Utility Functions ---------------------------------------
@@ -251,6 +262,32 @@ int MicroPanelH::mA2raw(int mA) {
   // mA * sensitivity * 1024/VCC = mA * 333/1000 * 1024/VCC
   long temp = (long)mA*341/getVCC();
   return (int)temp;
+}
+
+// Droop Resistance Conversions -------------------------------------------
+
+// sets the stored droop resistance
+void MicroPanelH::setRDroop(int mOhm) {
+  // ohmraw = mV/mA * A mA/rawI / (B mV/rawV) = A/B * ohm = A/(1000*B) mohm
+  //  = (mohm / 1000) * (micropanel.mA2raw(1000)) / (micropanel.mV2raw(1000))
+  //  = (mohm / 1000) * (vcc/341) / (vcc/79)
+  //  = mohm / 1000 * 79 / 341
+  _rDroop = (long)RDROOPFACTOR*mOhm/4316; // here we multiply by 64 so as to avoid using floating point math
+}
+
+// gets the stored droop resistance, reported as a mOhm value
+int MicroPanelH::getRDroop() {
+  return (_rDroop*4316)/RDROOPFACTOR;
+}
+
+// gets the stored droop resisance in raw form
+unsigned int MicroPanelH::getRDroopRaw() {
+  return _rDroop;
+}
+
+// get the droop voltage as (droop resistance)*(output current)
+int MicroPanelH::getVDroopRaw(int iOut) {
+  return iOut*_rDroop/RDROOPFACTOR;
 }
 
 // Sensor Private Utility Functions ---------------------------------------
@@ -316,6 +353,11 @@ void MicroPanelH::shutdownChannels() {
   pinMode(CH4_PIN, INPUT);
 }
 
+// checks if one or more channels are active
+bool MicroPanelH::isSomeChannelsActive() {
+  return getCh1() || getCh2() || getCh3() || getCh4();
+}
+
 // sets the terminal 1 current shutoff limit in mA, max 7500 mA
 // setting the limit greater than 7500 mA will cause the current shutoff never to be triggered
 void MicroPanelH::setCurrentLimit1(int current_mA) {
@@ -344,31 +386,64 @@ void MicroPanelH::setCurrentLimit4(int current_mA) {
   _currentLimitAmplitudeRaw4 = currentL*128/1875;
 }
 
+// sets the total terminal current shutoff limit in mA
+void MicroPanelH::setCurrentLimitTotal(int current_mA) {
+  long currentL = (long)current_mA;
+  _currentLimitAmplitudeRawTotal = currentL*128/1875;
+}
+
 // checks if last sensed current is greater than current limit
 void MicroPanelH::checkCurrentShutdown() {
   // this function takes negligable microseconds unless actually shutting down
-  if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw1
-    || _sensorAverages[I1_INDEX] < -_currentLimitAmplitudeRaw1)
+  if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw1)
     setCh1(LOW);
-  if (_sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw2
-    || _sensorAverages[I2_INDEX] < -_currentLimitAmplitudeRaw2)
+  if (_sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw2)
     setCh2(LOW);
-  if (_sensorAverages[I3_INDEX] > _currentLimitAmplitudeRaw3
-    || _sensorAverages[I3_INDEX] < -_currentLimitAmplitudeRaw3)
+  if (_sensorAverages[I3_INDEX] > _currentLimitAmplitudeRaw3)
     setCh3(LOW);
-  if (_sensorAverages[I4_INDEX] > _currentLimitAmplitudeRaw4
-    || _sensorAverages[I4_INDEX] < -_currentLimitAmplitudeRaw4)
+  if (_sensorAverages[I4_INDEX] > _currentLimitAmplitudeRaw4)
     setCh4(LOW);
+  if (_sensorAverages[I1_INDEX] + _sensorAverages[I2_INDEX] + 
+    _sensorAverages[I3_INDEX] + _sensorAverages[I4_INDEX] > _currentLimitAmplitudeRawTotal) {
+    setCh1(LOW);
+    setCh2(LOW);
+    setCh3(LOW);
+    setCh4(LOW);
+  }
 }
+// void MicroPanelH::checkCurrentShutdown() {
+//   // this function takes negligable microseconds unless actually shutting down
+//   if (_sensorAverages[I1_INDEX] > _currentLimitAmplitudeRaw1
+//     || _sensorAverages[I1_INDEX] < -_currentLimitAmplitudeRaw1)
+//     setCh1(LOW);
+//   if (_sensorAverages[I2_INDEX] > _currentLimitAmplitudeRaw2
+//     || _sensorAverages[I2_INDEX] < -_currentLimitAmplitudeRaw2)
+//     setCh2(LOW);
+//   if (_sensorAverages[I3_INDEX] > _currentLimitAmplitudeRaw3
+//     || _sensorAverages[I3_INDEX] < -_currentLimitAmplitudeRaw3)
+//     setCh3(LOW);
+//   if (_sensorAverages[I4_INDEX] > _currentLimitAmplitudeRaw4
+//     || _sensorAverages[I4_INDEX] < -_currentLimitAmplitudeRaw4)
+//     setCh4(LOW);
+//   if (_sensorAverages[I1_INDEX] + _sensorAverages[I2_INDEX] + 
+//     _sensorAverages[I3_INDEX] + _sensorAverages[I4_INDEX] > _currentLimitAmplitudeRawTotal
+//     || _sensorAverages[I1_INDEX] + _sensorAverages[I2_INDEX] + 
+//     _sensorAverages[I3_INDEX] + _sensorAverages[I4_INDEX] < -_currentLimitAmplitudeRawTotal) {
+//     setCh1(LOW);
+//     setCh2(LOW);
+//     setCh3(LOW);
+//     setCh4(LOW);
+//   }
+// }
 
 // Communications ------------------------------------------------------------
 
 // process the parsed RX command, overrides base class virtual function
-// Atverter readable registers: RV1, RV2, RI1, RI2, RT1, RT2, RVCC, RDUT
-// Atverter writable registers: WISD, WTSD
+// MicroPanel readable registers: RVB, RI1, RI2, RI3, RI4, RIT, RVCC, RCH1, RCH2, RCH3, RCH4
+// MicroPanel writable registers: WCH1, WCH2, WCH3, WCH4, WIL1, WIL2, WIL3, WIL4
 void MicroPanelH::interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RVB") == 0) { // read bus voltage
-    sprintf(getTXBuffer(receiveProtocol), "WVB:%d", getVBus());
+    sprintf(getTXBuffer(receiveProtocol), "WVB:%u", getVBus());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RI1") == 0) { // read current at terminal 1
     sprintf(getTXBuffer(receiveProtocol), "WI1:%d", getI1());
@@ -381,6 +456,9 @@ void MicroPanelH::interpretRXCommand(char* command, char* value, int receiveProt
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RI4") == 0) { // read current at terminal 4
     sprintf(getTXBuffer(receiveProtocol), "WI4:%d", getI4());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RIT") == 0) { // read total current
+    sprintf(getTXBuffer(receiveProtocol), "WIT:%d", getITotal());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RVCC") == 0) { // read the ~5V VCC bus voltage
     sprintf(getTXBuffer(receiveProtocol), "WVCC:%d", getVCC());
@@ -436,6 +514,11 @@ void MicroPanelH::interpretRXCommand(char* command, char* value, int receiveProt
     int temp = atoi(value);
     setCurrentLimit4(temp);
     sprintf(getTXBuffer(receiveProtocol), "WIL4:=%d", temp);
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WILT") == 0) { // write the total terminal current shutdown limit (mA)
+    int temp = atoi(value);
+    setCurrentLimitTotal(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WILT:=%d", temp);
     respondToMaster(receiveProtocol);
   } else { // send command data to the callback listener functions, registered from primary .ino file
     for (int n = 0; n < _commandCallbacksEnd; n++) {

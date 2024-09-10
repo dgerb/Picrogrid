@@ -577,10 +577,10 @@ void AtverterH::gradDescStep(int error) {
 // Atverter writable registers: WISD, WTSD
 void AtverterH::interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RV1") == 0) { // read voltage at terminal 1
-    sprintf(getTXBuffer(receiveProtocol), "WV1:%d", getV1());
+    sprintf(getTXBuffer(receiveProtocol), "WV1:%u", getV1());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RV2") == 0) { // read voltage at terminal 2
-    sprintf(getTXBuffer(receiveProtocol), "WV2:%d", getV2());
+    sprintf(getTXBuffer(receiveProtocol), "WV2:%u", getV2());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RI1") == 0) { // read current at terminal 1
     sprintf(getTXBuffer(receiveProtocol), "WI1:%d", getI1());

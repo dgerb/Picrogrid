@@ -17,26 +17,14 @@ MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
-// const unsigned int VBATMAX = 14000; // max battery voltage in mV
-const unsigned int VBATMIN = 11000; // min battery voltage in mV when drawing 0A
-const unsigned int VBATMINABS = 9500; // absolute min battery voltage in mV regardless of current
-const int IBATDISMAX = 6000; // max battery discharging current in mA
-const unsigned int RINTERNAL = 200; // estimated internal resistance (mohms)
+const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
+const unsigned int VBATMINABS = 10500*4; // absolute min battery voltage in mV regardless of current
+const int IBATDISMAX = 15000; // max battery discharging current in mA
+const unsigned int RINTERNAL = 100*4; // estimated internal resistance (mohms)
 
 // Battery Converter global variables
-// unsigned int vBatMax = 0; // max battery voltage
 unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
-// unsigned int vBat25 = 0; // 25% battery voltage
-// unsigned int vBat75 = 0; // 75% battery voltage
-// int iBatDisLim = 0; // peak discharge current limit
-// int iBatDisRef = 0; // sliding discharge current limit
-
-// Battery Converter algorithm interpolation slopes
-// reference discharge current = 0 + (vBat - vBatMin)*disInterpSlope
-//   = 0 + (iBatDisLim - 0) * ((vBat - vBatMin)/(vBat25 - vBatMin))
-// int disInterpSlope = 0; // interpolation slope for discharging
-// int setIRefsCounter = 0;
 
 // global variables for coulomb counting (relevant for SOC calculations)
 long coulombCounter = 0; // coulomb counter (mA-sec)
@@ -64,19 +52,14 @@ void setup() {
   RequestEventI2C requestEvent = [] () {micropanel.requestEventI2C();};
   micropanel.startI2C(8, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
-  // set battery raw voltage thresholds (raw 0-1023)
-  // int vBatDiff = VBATMAX-VBATMIN;
+  // set battery raw parameters (raw 0-1023)
   vBatMin = micropanel.mV2raw(VBATMIN);
   vBatMinAbs = micropanel.mV2raw(VBATMINABS);
-  // vBatMax = micropanel.mV2raw(VBATMAX);
-  // vBat25 = micropanel.mV2raw(VBATMIN + vBatDiff/4);
-  // vBat75 = micropanel.mV2raw(VBATMAX - vBatDiff/4);
-  // set raw peak current limits (-512 to 512) to default values
-  // iBatDisLim = micropanel.mA2raw(IBATDISMAX);
-  // disInterpSlope = iBatDisLim/(vBat25 - vBatMin);
-  // set initial sliding reference currents based on peak current limits and battery thresholds
-  // setIRefs(micropanel.getRawVBus());
   micropanel.setRDroop(RINTERNAL);
+
+  // initialize CH4 as being automatically on upon startup
+  micropanel.setCh4(HIGH);
+  micropanel.setDefaultInrushOverride(1000); // hold channel protection for 600 us to ride through inrush current
 
   // initialize interrupt timer for periodic calls to control update funciton
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
@@ -94,10 +77,10 @@ void controlUpdate(void)
   int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
   int iBat = micropanel.getRawITotal(); // current out of battery (positive)
 
-  // if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
-  //   if (micropanel.isSomeChannelsActive())
-  //     micropanel.shutdownChannels();
-  // }
+  if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
+    if (micropanel.isSomeChannelsActive())
+      micropanel.shutdownChannels();
+  }
 
   slowInterruptCounter++; // in this example, do some special stuff every 1 second (1000ms)
   if (slowInterruptCounter > 1000) {

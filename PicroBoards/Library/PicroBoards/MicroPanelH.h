@@ -58,6 +58,9 @@ constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
   SENSOR_I_WINDOW_MAX,
   SENSOR_I_WINDOW_MAX};
 
+// droop resistance multiplication factor to avoid floating point math (multiple of 2)
+const int RDROOPFACTOR = 1024;
+
 class MicroPanelH : public PicroBoard
 {
   public:
@@ -89,6 +92,7 @@ class MicroPanelH : public PicroBoard
     int getRawI2(); // gets Terminal 2 current ADC value (0 to 1023)
     int getRawI3(); // gets Terminal 3 current ADC value (0 to 1023)
     int getRawI4(); // gets Terminal 4 current ADC value (0 to 1023)
+    int getRawITotal(); // gets total current ADC value (0 to 1023)
   // fully-formatted sensors
     int getVCC(); // returns the averaged VCC value
     unsigned int getVBus(); // returns the averaged VBus mV value
@@ -96,18 +100,21 @@ class MicroPanelH : public PicroBoard
     int getI2(); // returns the averaged I2 mA value
     int getI3(); // returns the averaged I3 mA value
     int getI4(); // returns the averaged I4 mA value
+    int getITotal(); // returns the averaged total current mA value
   // diagnostics
     void setLED(int led, int state); // sets an LED to HIGH or LOW
     void setLED1(int state); // sets LED1 (yellow) to HIGH or LOW
     void setLED2(int state); // sets LED2 (green) to HIGH or LOW
   // current limiting and safety
     void shutdownChannels(); // immediately triggers all channels to shutdown
+    bool isSomeChannelsActive(); // returns true if one or more channels are active
     // void setBusVoltageShutdown(int voltage);
     // void checkBusVoltageShutdown();
     void setCurrentLimit1(int current); // sets the terminal 1 current shutoff limit in mA, max 7500 mA
     void setCurrentLimit2(int current); // sets the terminal 2 current shutoff limit in mA, max 7500 mA
     void setCurrentLimit3(int current); // sets the terminal 3 current shutoff limit in mA, max 7500 mA
     void setCurrentLimit4(int current); // sets the terminal 4 current shutoff limit in mA, max 7500 mA
+    void setCurrentLimitTotal(int current); // sets the total current shutoff limit in mA, max 7500 mA
     void checkCurrentShutdown(); // checks if last sensed current is greater than current limit
   // conversion utility functions
     unsigned int raw2mV(int raw); // converts ADC reading to mV voltage scaled by resistor divider
@@ -115,6 +122,11 @@ class MicroPanelH : public PicroBoard
     int raw2mA(int raw); // converts raw ADC current sense output to mA
     int mV2raw(unsigned int mV); // converts a mV value to raw 10-bit form
     int mA2raw(int mA); // converts a mA value to raw 10-bit form
+  // droop resistance conversions
+    void setRDroop(int mOhm); // sets the stored droop resistance
+    int getRDroop(); // gets the stored droop resistance, reported as a mOhm value
+    unsigned int getRDroopRaw(); // gets the stored droop resisance in raw form
+    int getVDroopRaw(int iOut); // get the droop voltage as (droop resistance)*(output current)
   // communications
     void interpretRXCommand(char* command, char* value, int receiveProtocol) override; // process RX command
   private:
@@ -132,7 +144,9 @@ class MicroPanelH : public PicroBoard
     int _currentLimitAmplitudeRaw2 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRaw3 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRaw4 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
-    int _holdProtectMicros = 20; // default hold delay intended to override inrush current on switch
+    int _currentLimitAmplitudeRawTotal = 1776; // the upper raw total current limit before gate shutoff
+    int _holdProtectMicros = 50; // default hold delay intended to override inrush current on switch
+    long _rDroop = 0; // stored droop resistance value
     // functions
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value
 };
