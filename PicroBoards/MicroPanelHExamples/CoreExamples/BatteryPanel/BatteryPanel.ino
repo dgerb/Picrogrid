@@ -18,7 +18,7 @@ long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
 const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
-const unsigned int VBATMINABS = 10500*4; // absolute min battery voltage in mV regardless of current
+const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 100*4; // estimated internal resistance (mohms)
 
@@ -86,30 +86,31 @@ void controlUpdate(void)
   if (slowInterruptCounter > 1000) {
     slowInterruptCounter = 0;
     micropanel.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
+
     // prints channel state (as binary), VCC, VBus, I1, I2, I3, I4 to the serial console of attached computer
-    Serial.print("State: ");
-    Serial.print(micropanel.getCh1());
-    Serial.print(micropanel.getCh2());
-    Serial.print(micropanel.getCh3());
-    Serial.print(micropanel.getCh4());
-    Serial.print(", VCC=");
-    Serial.print(micropanel.getVCC());
-    Serial.print("mV, VBus=");
-    Serial.print(micropanel.getVBus());
-    Serial.print("mV, I1=");  
-    Serial.print(micropanel.getI1());
-    Serial.print("mA, I2=");  
-    Serial.print(micropanel.getI2());
-    Serial.print("mA, I3=");  
-    Serial.print(micropanel.getI3());
-    Serial.print("mA, I4=");  
-    Serial.print(micropanel.getI4());
-    Serial.print("mA, ITot=");
-    Serial.print(micropanel.getITotal());
-    Serial.print("mA, vbat:");
-    Serial.print(vBat);
-    Serial.print(", vdrp:");
-    Serial.println(micropanel.getVDroopRaw(iBat));
+    // Serial.print("State: ");
+    // Serial.print(micropanel.getCh1());
+    // Serial.print(micropanel.getCh2());
+    // Serial.print(micropanel.getCh3());
+    // Serial.print(micropanel.getCh4());
+    // Serial.print(", VCC=");
+    // Serial.print(micropanel.getVCC());
+    // Serial.print("mV, VBus=");
+    // Serial.print(micropanel.getVBus());
+    // Serial.print("mV, I1=");  
+    // Serial.print(micropanel.getI1());
+    // Serial.print("mA, I2=");  
+    // Serial.print(micropanel.getI2());
+    // Serial.print("mA, I3=");  
+    // Serial.print(micropanel.getI3());
+    // Serial.print("mA, I4=");  
+    // Serial.print(micropanel.getI4());
+    // Serial.print("mA, ITot=");
+    // Serial.print(micropanel.getITotal());
+    // Serial.print("mA, vbat:");
+    // Serial.print(vBat);
+    // Serial.print(", vdrp:");
+    // Serial.println(micropanel.getVDroopRaw(iBat));
   }
 }
 
