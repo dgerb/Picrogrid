@@ -10,7 +10,7 @@
 # to start a session through ssh and log off:
 # sudo apt install tmux
 # tmux
-# python3 ~/Picrogrid/RaspberryPi/CoreExamples/MicrogridMonitored/Monitor.py &
+# python3 ~/Picrogrid/RaspberryPi/CoreExamples/PanelMonitored/PanelMonitor.py &
 # <ctrl+b and $ (to name session)>
 # <ctrl+b and d (to exit tmux)>
 

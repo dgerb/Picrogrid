@@ -17,8 +17,7 @@ MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
-const unsigned int VBATMIN = 52000; // min battery voltage in mV when drawing 0A
-// const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
+const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
 const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 100*4; // estimated internal resistance (mohms)
