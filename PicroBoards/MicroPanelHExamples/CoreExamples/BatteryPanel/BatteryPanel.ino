@@ -57,9 +57,8 @@ void setup() {
   vBatMinAbs = micropanel.mV2raw(VBATMINABS);
   micropanel.setRDroop(RINTERNAL);
 
-  // initialize CH4 as being automatically on upon startup
-  micropanel.setCh4(HIGH);
-  micropanel.setDefaultInrushOverride(1000); // hold channel protection for 600 us to ride through inrush current
+  // initialize inrush override for channels
+  micropanel.setDefaultInrushOverride(1000); // hold channel protection for 1000 us to ride through inrush current
 
   // initialize interrupt timer for periodic calls to control update funciton
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
