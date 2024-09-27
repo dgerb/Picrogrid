@@ -59,6 +59,7 @@ void setup() {
 
   // initialize inrush override for channels
   micropanel.setDefaultInrushOverride(200); // hold default channel protection for 200us to ride through inrush current
+  micropanel.setDefaultInrushOverride(2, 1000); // channel 2 (fans) needs 1000us inrush ride through
   micropanel.setDefaultInrushOverride(4, 1000); // channel 4 (refrigerator) needs 1000us inrush ride through
 
   // initialize interrupt timer for periodic calls to control update funciton
