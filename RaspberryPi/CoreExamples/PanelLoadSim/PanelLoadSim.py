@@ -10,7 +10,7 @@
 # to start a session through ssh and log off:
 # sudo apt install tmux
 # tmux
-# python3 ~/Picrogrid/RaspberryPi/CoreExamples/PanelMonitored/PanelMonitor.py &
+# python3 ~/Picrogrid/RaspberryPi/CoreExamples/PanelLoadSim/PanelLoadSim.py &
 # <ctrl+b and $ (to name session)>
 # <ctrl+b and d (to exit tmux)>
 
@@ -128,7 +128,7 @@ while True:
     for channel in range(1, 5):
         if now.hour in channelHours[channel-1]:
             command = "WCH"+str(channel)+":1\n"
-        else
+        else:
             command = "WCH"+str(channel)+":0\n"
         [outString, success] = sendI2CCommand(panelAddress, command)
 
