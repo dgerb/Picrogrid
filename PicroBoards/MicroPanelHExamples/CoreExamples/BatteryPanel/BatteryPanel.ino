@@ -58,7 +58,8 @@ void setup() {
   micropanel.setRDroop(RINTERNAL);
 
   // initialize inrush override for channels
-  micropanel.setDefaultInrushOverride(1000); // hold channel protection for 1000 us to ride through inrush current
+  micropanel.setDefaultInrushOverride(200); // hold default channel protection for 200us to ride through inrush current
+  micropanel.setDefaultInrushOverride(4, 1000); // channel 4 (refrigerator) needs 1000us inrush ride through
 
   // initialize interrupt timer for periodic calls to control update funciton
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)

@@ -33,6 +33,12 @@ import RPi.GPIO as GPIO
 fileName = 'output.csv'
 panelAddress = 0x08
 
+electronicsHours = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+lightingHours = [6, 7, 8, 9, 17, 18, 19, 20, 21, 22, 23]
+ventilationHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+refrigerationHours = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+channelHours = [electronicsHours, lightingHours, ventilationHours, refrigerationHours]
+
 def StringToBytes(val):
     retVal = []
     for c in val:
@@ -70,16 +76,16 @@ GPIO.setmode(GPIO.BCM)
 bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
-# turn on all channels first
-for channel in range(1, 5):
-    success = False
-    command = "WCH"+str(channel)+":1\n"
-    while not success:
-        [outString, success] = sendI2CCommand(panelAddress, command)
-        if (outString[0:4] != command[0:4]):
-            print("Failed to set channel. outString: " + outString)
-            success = False
-        sleep(0.2)
+# # turn on all channels first
+# for channel in range(1, 5):
+#     success = False
+#     command = "WCH"+str(channel)+":1\n"
+#     while not success:
+#         [outString, success] = sendI2CCommand(panelAddress, command)
+#         if (outString[0:4] != command[0:4]):
+#             print("Failed to set channel. outString: " + outString)
+#             success = False
+#         sleep(0.2)
 
 # set up monitoring loop
 header = "Year,Month,Day,Hour,Minute,Second," + "VBus,I1,I2,I3,I4,CH1,CH2,CH3,CH4"
@@ -117,3 +123,14 @@ while True:
         GPIO.output(pin, True)
         GPIO.setup(pin, GPIO.IN)
     sleep(0.2)
+
+    # turn on/off channels depending on what hour of day for load simulation
+    for channel in range(1, 5):
+        if now.hour in channelHours[channel-1]:
+            command = "WCH"+str(channel)+":1\n"
+        else
+            command = "WCH"+str(channel)+":0\n"
+        [outString, success] = sendI2CCommand(panelAddress, command)
+
+
+
