@@ -37,7 +37,7 @@ electronicsHours = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
 lightingHours = [6, 7, 8, 9, 17, 18, 19, 20, 21, 22, 23]
 ventilationHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 refrigerationHours = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-channelHours = [electronicsHours, lightingHours, ventilationHours, refrigerationHours]
+channelHours = [lightingHours, ventilationHours, refrigerationHours, electronicsHours]
 
 def StringToBytes(val):
     retVal = []
