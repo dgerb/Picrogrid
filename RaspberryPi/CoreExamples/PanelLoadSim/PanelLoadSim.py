@@ -131,6 +131,7 @@ while True:
         else:
             command = "WCH"+str(channel)+":0\n"
         [outString, success] = sendI2CCommand(panelAddress, command)
+        sleep(0.2)
 
 
 
