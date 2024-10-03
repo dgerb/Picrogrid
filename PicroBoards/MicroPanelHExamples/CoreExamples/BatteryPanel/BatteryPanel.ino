@@ -7,7 +7,7 @@
   the high power port and loads connected to low power ports. Ensures battery does not get over discharged with a
   low-voltage cutoff.
 
-  modified 20 August 2024
+  created 20 August 2024
   by Daniel Gerber
 */
 
@@ -21,10 +21,12 @@ const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 
 const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 100*4; // estimated internal resistance (mohms)
+const unsigned int VACTIVATE = VBATMIN + 2000; // if undervoltage cutoff, needs this voltage to reactivate
 
 // Battery Converter global variables
 unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
+unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
 
 // global variables for coulomb counting (relevant for SOC calculations)
 long coulombCounter = 0; // coulomb counter (mA-sec)
@@ -55,6 +57,7 @@ void setup() {
   // set battery raw parameters (raw 0-1023)
   vBatMin = micropanel.mV2raw(VBATMIN);
   vBatMinAbs = micropanel.mV2raw(VBATMINABS);
+  vActivate = micropanel.mV2raw(VACTIVATE);
   micropanel.setRDroop(RINTERNAL);
 
   // initialize inrush override for channels
@@ -118,12 +121,37 @@ void controlUpdate(void)
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RFN") == 0) {
     readFileName(value, receiveProtocol);
+  } else {
+    int temp = atoi(value);
+    int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
+    if (strcmp(command, "WCP1") == 0) { // write the desired terminal 1 state
+      if (temp == 1 && micropanel.getCh1() == 0 && vBat < vActivate)
+        temp = 0;
+      micropanel.setCh1(temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP1:=%d", temp);
+    } else if (strcmp(command, "WCP2") == 0) { // write the desired terminal 2 state
+      if (temp == 1 && micropanel.getCh2() == 0 && vBat < vActivate)
+        temp = 0;
+      micropanel.setCh2(temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP2:=%d", temp);
+    } else if (strcmp(command, "WCP3") == 0) { // write the desired terminal 3 state
+      if (temp == 1 && micropanel.getCh3() == 0 && vBat < vActivate)
+        temp = 0;
+      micropanel.setCh3(temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP3:=%d", temp);
+    } else if (strcmp(command, "WCP4") == 0) { // write the desired terminal 4 state
+      if (temp == 1 && micropanel.getCh4() == 0 && vBat < vActivate)
+        temp = 0;
+      micropanel.setCh4(temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", temp);
+    }
+    micropanel.respondToMaster(receiveProtocol);
   }
 }
 
 // outputs the file name to serial
 void readFileName(const char* valueStr, int receiveProtocol) {
-  sprintf(micropanel.getTXBuffer(receiveProtocol), "WFN:%s", "4_SmartPanel.ino");
+  sprintf(micropanel.getTXBuffer(receiveProtocol), "WFN:%s", "BatteryPanel.ino");
   micropanel.respondToMaster(receiveProtocol);
 }
 
