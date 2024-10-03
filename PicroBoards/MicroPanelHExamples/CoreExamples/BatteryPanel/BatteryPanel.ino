@@ -122,6 +122,7 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RFN") == 0) {
     readFileName(value, receiveProtocol);
   } else {
+    // Write Channel Protected: checks if battery voltage is above activate threshold before enabling channel
     int temp = atoi(value);
     int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
     if (strcmp(command, "WCP1") == 0) { // write the desired terminal 1 state

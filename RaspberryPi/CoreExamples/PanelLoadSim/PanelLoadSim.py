@@ -127,9 +127,9 @@ while True:
     # turn on/off channels depending on what hour of day for load simulation
     for channel in range(1, 5):
         if now.hour in channelHours[channel-1]:
-            command = "WCH"+str(channel)+":1\n"
+            command = "WCP"+str(channel)+":1\n"
         else:
-            command = "WCH"+str(channel)+":0\n"
+            command = "WCP"+str(channel)+":0\n"
         [outString, success] = sendI2CCommand(panelAddress, command)
         sleep(0.2)
 
