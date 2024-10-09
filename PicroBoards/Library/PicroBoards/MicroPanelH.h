@@ -78,7 +78,8 @@ class MicroPanelH : public PicroBoard
     void setCh3(int state); // sets the state of Channel 3
     void setCh4(int state); // sets the state of Channel 4
     void setChannel(int chPin, int state, int holdProtectMicroseconds); // set channel and hold a bit
-    void setDefaultInrushOverride(int holdProtectMicroseconds); // set default switch hold delay
+    void setDefaultInrushOverride(int holdProtectMicroseconds); // set all default switch hold delays
+    void setDefaultInrushOverride(int channel1234, int holdProtectMicroseconds); // set switch hold delay
     int getCh1(); // gets the state of Channel 1
     int getCh2(); // gets the state of Channel 2
     int getCh3(); // gets the state of Channel 3
@@ -145,7 +146,7 @@ class MicroPanelH : public PicroBoard
     int _currentLimitAmplitudeRaw3 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRaw4 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRawTotal = 1776; // the upper raw total current limit before gate shutoff
-    int _holdProtectMicros = 50; // default hold delay intended to override inrush current on switch
+    int _holdProtectMicros[4] = {50, 50, 50, 50}; // default hold time on switch, overrides current limiter for inrush current    int _holdProtectMicros1 = 50; // default hold time on switch, overrides current limiter for inrush current
     long _rDroop = 0; // stored droop resistance value
     // functions
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value

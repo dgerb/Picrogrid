@@ -59,19 +59,19 @@ void MicroPanelH::initializeInterruptTimer(long periodus, void (*interruptFuncti
 // Channel State Set and Get -----------------------------------------------
 
 void MicroPanelH::setCh1(int state) {
-  setChannel(CH1_PIN, state, _holdProtectMicros);
+  setChannel(CH1_PIN, state, _holdProtectMicros[0]);
 }
 
 void MicroPanelH::setCh2(int state) {
-  setChannel(CH2_PIN, state, _holdProtectMicros);
+  setChannel(CH2_PIN, state, _holdProtectMicros[1]);
 }
 
 void MicroPanelH::setCh3(int state) {
-  setChannel(CH3_PIN, state, _holdProtectMicros);
+  setChannel(CH3_PIN, state, _holdProtectMicros[2]);
 }
 
 void MicroPanelH::setCh4(int state) {
-  setChannel(CH4_PIN, state, _holdProtectMicros);
+  setChannel(CH4_PIN, state, _holdProtectMicros[3]);
 }
 
 void MicroPanelH::setChannel(int chPin, int state, int holdProtectMicroseconds) {
@@ -82,7 +82,16 @@ void MicroPanelH::setChannel(int chPin, int state, int holdProtectMicroseconds) 
 }
 
 void MicroPanelH::setDefaultInrushOverride(int holdProtectMicroseconds) {
-  _holdProtectMicros = holdProtectMicroseconds;
+  setDefaultInrushOverride(1, holdProtectMicroseconds);
+  setDefaultInrushOverride(2, holdProtectMicroseconds);
+  setDefaultInrushOverride(3, holdProtectMicroseconds);
+  setDefaultInrushOverride(4, holdProtectMicroseconds);
+}
+
+void MicroPanelH::setDefaultInrushOverride(int channel1234, int holdProtectMicroseconds) {
+  if(channel1234 < 1 || channel1234 > 4)
+    return;
+  _holdProtectMicros[channel1234-1] = holdProtectMicroseconds;
 }
 
 int MicroPanelH::getCh1() {
