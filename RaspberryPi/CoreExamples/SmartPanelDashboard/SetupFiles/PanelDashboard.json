@@ -1,0 +1,544 @@
+{
+  "dashboard":
+  {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "type": "mysql",
+          "uid": "fe7briho1xcsgd"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisGridShow": true,
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 3,
+              "pointSize": 8,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "max": 60,
+            "min": 40,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "volt"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": false
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "datasource": {
+              "type": "mysql",
+              "uid": "fe7briho1xcsgd"
+            },
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "SELECT timestamp, vb FROM paneldb.channelRead ",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [
+                    {
+                      "name": "timestamp",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "parameters": [
+                    {
+                      "name": "vb",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ]
+            },
+            "table": "channelRead"
+          }
+        ],
+        "title": "Battery Voltage",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "uid": "fe7briho1xcsgd"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "index": 0,
+                    "text": "Off"
+                  },
+                  "1": {
+                    "index": 1,
+                    "text": "On"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 9,
+          "x": 12,
+          "y": 0
+        },
+        "id": 4,
+        "options": {
+          "displayMode": "gradient",
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": false
+          },
+          "maxVizHeight": 300,
+          "minVizHeight": 16,
+          "minVizWidth": 8,
+          "namePlacement": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showUnfilled": true,
+          "sizing": "auto",
+          "text": {},
+          "valueMode": "color"
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "SELECT ch1 AS \"Channel 1\", ch2 AS \"Channel 2\", ch3 AS \"Channel 3\", ch4 AS \"Channel 4\" FROM paneldb.channelRead ",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "alias": "\"Channel 1\"",
+                  "parameters": [
+                    {
+                      "name": "ch1",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Channel 2\"",
+                  "parameters": [
+                    {
+                      "name": "ch2",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Channel 3\"",
+                  "parameters": [
+                    {
+                      "name": "ch3",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Channel 4\"",
+                  "parameters": [
+                    {
+                      "name": "ch4",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ]
+            },
+            "table": "channelRead"
+          }
+        ],
+        "title": "Channel State",
+        "type": "bargauge"
+      },
+      {
+        "datasource": {
+          "type": "mysql",
+          "uid": "fe7briho1xcsgd"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 3,
+          "w": 9,
+          "x": 12,
+          "y": 5
+        },
+        "id": 3,
+        "options": {
+          "buttons": [
+            {
+              "datasource": "MariaDB",
+              "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (1, TRUE);\",\n    \"format\": \"table\"\n}",
+              "text": "Channel 1"
+            },
+            {
+              "datasource": "MariaDB",
+              "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (2, TRUE);\",\n    \"format\": \"table\"\n}",
+              "text": "Channel 2"
+            },
+            {
+              "datasource": "MariaDB",
+              "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (3, TRUE);\",\n    \"format\": \"table\"\n}",
+              "text": "Channel 3"
+            },
+            {
+              "datasource": "MariaDB",
+              "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (4, TRUE);\",\n    \"format\": \"table\"\n}",
+              "text": "Channel 4"
+            }
+          ],
+          "orientation": "horizontal"
+        },
+        "pluginVersion": "0.3.2",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "SELECT ch1 FROM paneldb.channelRead ",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [
+                    {
+                      "name": "ch1",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ]
+            },
+            "table": "channelRead"
+          }
+        ],
+        "title": "Channel Switches",
+        "type": "speakyourcode-button-panel"
+      },
+      {
+        "datasource": {
+          "type": "mysql",
+          "uid": "fe7briho1xcsgd"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisGridShow": true,
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 3,
+              "pointSize": 8,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "max": 5,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "volt"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "id": 2,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "datasource": {
+              "type": "mysql",
+              "uid": "fe7briho1xcsgd"
+            },
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "SELECT timestamp, i1 AS \"Ch1\", i2 AS \"Ch2\", i3 AS \"Ch3\", i4 AS \"Ch4\" FROM paneldb.channelRead ",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [
+                    {
+                      "name": "timestamp",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Ch1\"",
+                  "parameters": [
+                    {
+                      "name": "i1",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Ch2\"",
+                  "parameters": [
+                    {
+                      "name": "i2",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Ch3\"",
+                  "parameters": [
+                    {
+                      "name": "i3",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "alias": "\"Ch4\"",
+                  "parameters": [
+                    {
+                      "name": "i4",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ]
+            },
+            "table": "channelRead"
+          }
+        ],
+        "title": "Channel Current",
+        "type": "timeseries"
+      }
+    ],
+    "preload": false,
+    "refresh": "auto",
+    "schemaVersion": 40,
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "PanelDashboard",
+    "uid": "de7c0i5dtnsaod",
+    "version": 21,
+    "weekStart": ""
+  },
+  "folderId":0,
+  "overwrite":true
+}
