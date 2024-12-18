@@ -1,0 +1,10 @@
+{
+  "name": "MariaDB",
+  "type": "mysql",
+  "access": "proxy",
+  "url": "localhost:3306",
+  "database": "paneldb",
+  "user": "panelpi",
+  "password": "panelpipw",
+  "isDefault": true
+}

@@ -51,6 +51,8 @@ def parseValueStr(message):
         return "Error"
     else:
         valueStr = splitArr[1]
+        if valueStr[0] == '=':
+            return "Error"
         valueStr = valueStr.replace('\n','')
         valueStr = valueStr.replace('\r','')
         return valueStr

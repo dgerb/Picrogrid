@@ -7,6 +7,23 @@
   the high power port and loads connected to low power ports. Ensures battery does not get over discharged with a
   low-voltage cutoff.
 
+  This example is intended to power a DC nanogrid. The channels are assigned as:
+  Ch 1: lights
+  Ch 2: room 1 fans and electronics
+  Ch 3: room 2 fans and electronics
+  Ch 4: refrigerator
+
+  The loads on channels 2 and 3 might draw initial inrush current greater than the 5.5A hardware current limit.
+  We use the inrush override feature to disable the hardware current shutoff for 1000 microseconds.
+
+  Channel 4 may draw >5.5A of inrush current for several seconds. Here, we disable the hardware current shutoff altogether.
+  Be careful when disabling the hardware current shutoff; make sure you understand clearly that the inrush current will not
+  damage the connectors or board traces, rated for 5A. I recommend you put a fuse or breaker in series with this channel,
+  set to the absolute max inrush current you would expect.
+
+  We can still protect Channel 4 through software. The automatic software shutoff in the library will be too fast for our
+  needs, thus we create our own code and timer in controlUpdate for channel 4.
+
   created 20 August 2024
   by Daniel Gerber
 */
@@ -32,14 +49,20 @@ unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to rea
 long coulombCounter = 0; // coulomb counter (mA-sec)
 long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
 
+// cumulative moving average for channel 4 software shutoff
+const int ICH4LIMIT = 5000; // channel 4 cumulative average current limit (mA)
+const int CH4AVGWINDOW = 8; // moving average window size
+int iCh4Limit = 0;
+int iCh4Average = 0; // ch4 current moving average
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   micropanel.setupPinMode(); // set pins to input or output
   micropanel.initializeSensors(); // set filtered sensor values to initial reading
-  micropanel.setCurrentLimit1(6000); // set gate shutdown at 6A peak current 
-  micropanel.setCurrentLimit2(6000); // set gate shutdown at 6A peak current 
-  micropanel.setCurrentLimit3(6000); // set gate shutdown at 6A peak current 
-  micropanel.setCurrentLimit4(6000); // set gate shutdown at 6A peak current 
+  micropanel.setCurrentLimit1(6000); // set software current shutdown at 6A peak current 
+  micropanel.setCurrentLimit2(6000); // set software current shutdown at 6A peak current 
+  micropanel.setCurrentLimit3(6000); // set software current shutdown at 6A peak current 
+  micropanel.setCurrentLimit4(10000); // effectively remove channel 4 software current shutdown
   micropanel.setCurrentLimitTotal(IBATDISMAX); // set gate shutdown at max battery current 
 
   // set up UART and I2C command support
@@ -62,8 +85,12 @@ void setup() {
 
   // initialize inrush override for channels
   micropanel.setDefaultInrushOverride(200); // hold default channel protection for 200us to ride through inrush current
-  micropanel.setDefaultInrushOverride(2, 1000); // channel 2 (fans) needs 1000us inrush ride through
-  micropanel.setDefaultInrushOverride(4, 1000); // channel 4 (refrigerator) needs 1000us inrush ride through
+  micropanel.setDefaultInrushOverride(2, 1000); // channel 2 (fans and electronics) needs 1000us inrush ride through
+  micropanel.setDefaultInrushOverride(3, 1000); // channel 3 (fans and electronics) needs 1000us inrush ride through
+  micropanel.disableHardwareShutoff(4); // Expert Only: for channel 4, we disable the hardware current shutoff
+
+  // set channel 4 current cumulative average limit
+  iCh4Limit = micropanel.mA2raw(ICH4LIMIT);
 
   // initialize interrupt timer for periodic calls to control update funciton
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
@@ -90,6 +117,14 @@ void controlUpdate(void)
   if (slowInterruptCounter > 1000) {
     slowInterruptCounter = 0;
     micropanel.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
+
+    // check ch4 current cumulative average is less than the channel 4 limit
+    int iCh4 = micropanel.getRawI4();
+    long iCh4Acc = (long) iCh4Average * (CH4AVGWINDOW - 1); // we use a cumulative moving average
+    iCh4Average = (iCh4Acc + iCh4) / CH4AVGWINDOW; // division could be optimized if needed
+    if (iCh4Average > iCh4Limit) {
+      micropanel.setCh4(LOW);
+    }
 
     // prints channel state (as binary), VCC, VBus, I1, I2, I3, I4 to the serial console of attached computer
     // Serial.print("State: ");

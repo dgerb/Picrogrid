@@ -1,0 +1,215 @@
+{
+  "dashboard":
+  {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "type": "mysql",
+          "uid": "ae6xd4iroonb4c"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "buttons": [
+            {
+              "datasource": "MariaDB",
+              "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (2, TRUE);\",\n    \"format\": \"table\"\n}",
+              "text": "Channel 1",
+              "variant": "primary"
+            }
+          ],
+          "orientation": "horizontal"
+        },
+        "pluginVersion": "0.3.2",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "",
+            "refId": "A"
+          }
+        ],
+        "title": "Panel Title",
+        "type": "speakyourcode-button-panel"
+      },
+      {
+        "datasource": {
+          "type": "mysql",
+          "uid": "ae6xd4iroonb4c"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "id": 1,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "11.4.0",
+        "targets": [
+          {
+            "dataset": "paneldb",
+            "datasource": {
+              "type": "mysql",
+              "uid": "ae6xd4iroonb4c"
+            },
+            "editorMode": "builder",
+            "format": "table",
+            "rawSql": "SELECT num1, timestamp FROM paneldb.channelRead LIMIT 50 ",
+            "refId": "A",
+            "sql": {
+              "columns": [
+                {
+                  "parameters": [
+                    {
+                      "name": "num1",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                },
+                {
+                  "parameters": [
+                    {
+                      "name": "timestamp",
+                      "type": "functionParameter"
+                    }
+                  ],
+                  "type": "function"
+                }
+              ],
+              "groupBy": [
+                {
+                  "property": {
+                    "type": "string"
+                  },
+                  "type": "groupBy"
+                }
+              ],
+              "limit": 50
+            },
+            "table": "channelRead"
+          }
+        ],
+        "title": "Test Panel Title",
+        "type": "timeseries"
+      }
+    ],
+    "preload": false,
+    "refresh": "10s",
+    "schemaVersion": 40,
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "2024-12-16T22:55:39.000Z",
+      "to": "2024-12-16T23:00:11.000Z"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "testdashboard",
+    "uid": "fe6yqlfrc7f28e",
+    "version": 13,
+    "weekStart": ""
+  },
+  "folderId":0,
+  "overwrite":true
+}

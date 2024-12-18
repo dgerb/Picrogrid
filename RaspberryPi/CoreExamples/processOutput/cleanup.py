@@ -33,7 +33,7 @@ for n in range(1,len(data)):
         averageAcc = [0] * len(data[n])
         averageN = [0] * len(data[n])
     for m in range(0,len(data[0])):
-        if data[n][m] == '???' or data[n][m] == 'Error':
+        if data[n][m] == '???' or data[n][m] == 'Error' or data[n][m][0] == '=':
             data[n][m] = data[n-1][m]
         else:
             averageAcc[m] = averageAcc[m] + int(data[n][m])
