@@ -3,8 +3,6 @@ import random
 import time
 from datetime import datetime
 
-lastCheckTime = None
-
 vb = 54
 i1 = 1
 i2 = 2
@@ -48,19 +46,13 @@ def insert_data():
     db_connection.close()
 
 def check_for_button():
-    global lastCheckTime
     global ch1
     global ch2
     global ch3
     global ch4
     db_connection = connect_to_db()
     cursor = db_connection.cursor(dictionary=True)
-    query = """
-        SELECT id, timestamp, channel
-        FROM channelWrite
-        WHERE timestamp >= %s
-        """
-    cursor.execute(query, (lastCheckTime,))
+    cursor.execute("""SELECT * FROM channelWrite""")
     rows = cursor.fetchall()
     if rows:
         for row in rows:
@@ -74,7 +66,8 @@ def check_for_button():
                 ch3 = not ch3
             elif chSelect == 4:
                 ch4 = not ch4
-    lastCheckTime = datetime.now()
+    cursor.execute("""DELETE FROM channelWrite""")
+    db_connection.commit()  # Commit the changes to the database
     cursor.close()
     db_connection.close()
     return (len(rows) > 0)
@@ -82,8 +75,8 @@ def check_for_button():
 if __name__ == "__main__":
     insert_data()
     while True:
-        for n in range(0,10):
+        for n in range(0,5):
             if check_for_button():
                 insert_data()
-            time.sleep(0.5)
+            time.sleep(1)
         insert_data()
