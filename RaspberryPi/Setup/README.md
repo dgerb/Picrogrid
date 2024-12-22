@@ -4,7 +4,7 @@ These instructions will let you set up a Raspberry Pi to flash Atmega328P microc
 
 ## Flash Pi with BerryLan
 
-Download BerryLan enabled Raspbian image from URL:
+Download BerryLan enabled Raspbian image from URL (find the "Raspbian image" link):
 https://github.com/nymea/berrylan
 
 Flash BerryLan image to micro SD card using Raspberry Pi Imager:

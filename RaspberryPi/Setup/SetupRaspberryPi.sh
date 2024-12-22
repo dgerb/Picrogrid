@@ -41,7 +41,7 @@ rm -fr avrdude-6.2 avrdude-6.2.tar.gz
 #  id    = "linuxgpio";
 #  desc  = "Use the Linux sysfs interface to bitbang GPIO lines";
 #  type  = "linuxgpio";
-#  reset = 4;
+#  reset = ?;
 #  sck   = 11;
 #  mosi  = 10;
 #  miso  = 9;
@@ -68,5 +68,15 @@ echo
 echo Would you like to test a board connectivity? 
 read -p 'Enter GPIO number: ' GPIONUM
 sudo avrdude -c linuxgpio$GPIONUM -p atmega328p -v
+
+# If you get the error:
+# Can't export GPIO XX, already exported/busy?: Device or resource busy avrdude done. Thank you.
+# Then use the following commands to try again:
+    # echo $GPIONUM > /sys/class/gpio/unexport
+    # echo 11 > /sys/class/gpio/unexport
+    # echo 10 > /sys/class/gpio/unexport
+    # echo 9 > /sys/class/gpio/unexport
+    # sudo avrdude -c linuxgpio$GPIONUM -p atmega328p -v
+
 
 

@@ -26,14 +26,17 @@ sleep 2
 
 # Set up MariaDB database on Pi
 # Tested with mariadb-server version: 1:10.5.26-0+deb11u2
-DIR="."
+cd ~
+DIR="./Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard"
 DB_USER="panelpi"
 DB_PW="panelpipw"
 DB_NAME="paneldb"
+# Install and initialize MariaDB (a type of MySQL database that works great on a Pi)
 sudo apt install mariadb-server -y
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
 pip3 install mysql-connector-python
+# Create a new database with the proper settings
 sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
 sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
 sudo mysql -u root -p $DB_NAME < $DIR/SetupFiles/DBSetup.sql
@@ -57,14 +60,38 @@ sudo /bin/systemctl enable grafana-server
 sudo /bin/systemctl start grafana-server
 # Reset admin password
 #   https://community.grafana.com/t/admin-password-reset/19455/22
+sleep 10 # must wait a bit after start
 sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
 sudo /bin/systemctl restart grafana-server
-sleep 10 # must wait a bit after restart before can send http requests
 # Add the MariaDB database as a data source for Grafana
+sleep 10 # must wait a bit after restart before can send http requests
 curl -X POST -H "Content-Type: application/json" -u admin:$GRAFANA_ADMIN_PW \
   --data @$DIR/SetupFiles/mariadb_datasource.json \
   http://localhost:3000/api/datasources
+sleep 3
+curl -X POST \
+  http://localhost:3000/api/datasources \
+  -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+  -H "Content-Type: application/json" \
+  -d '{
+        "name": "MariaDB",
+        "type": "mysql",
+        "access": "proxy",
+        "url": "localhost:3306",
+        "database": "paneldb",
+        "user": "panelpi",
+        "password": "panelpipw",
+        "isDefault": true,
+        "jsonData": {
+          "tlsSkipVerify": true
+        },
+        "secureJsonData": {
+            "password": "panelpipw"
+        },
+        "uid": "fe7briho1xcsgd"
+      }'
 # Create a new view-only user
+sleep 3 # must wait a bit after between curl requests
 curl -X POST http://localhost:3000/api/admin/users \
 -H "Content-Type: application/json" \
 -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
@@ -81,9 +108,10 @@ curl -X POST http://localhost:3000/api/admin/users \
 #   },“folderId”: 0,“overwrite”: true}
 #   Also set the first "id" field to Null or it complains dashboard not found
 #   https://community.grafana.com/t/import-dashboard-from-file-via-api/22266/3
+sleep 3 # must wait a bit after between curl requests
 curl -X POST \
   -H "Content-Type: application/json" \
   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
-  -d @$DIR/SetupFiles/testdashboard.json \
+  -d @$DIR/SetupFiles/PanelDashboard.json \
   http://localhost:3000/api/dashboards/db
 
