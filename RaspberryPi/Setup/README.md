@@ -5,7 +5,7 @@ These instructions will let you set up a Raspberry Pi to flash Atmega328P microc
 ## Flash Pi with BerryLan
 
 Download BerryLan enabled Raspbian image from URL:
-https://berrylan.org/
+https://github.com/nymea/berrylan
 
 Flash BerryLan image to micro SD card using Raspberry Pi Imager:
 https://www.raspberrypi.com/software/
@@ -48,9 +48,11 @@ Run the single pi basic setup script with the command:
   
 ~/Picrogrid/RaspberryPi/Setup/SetupRaspberryPi.sh
 
-To flash the bootloader, use the command:
-  
+You are now done! You can now go into the example folders and run the setup scripts for that example.
+
+Optional: If you are not running example code, and you want to program the PicroBoard with the USB TTL FTDI cable, you will need to flash the bootloader to the Picroboard. To do this:
+
 ~/Picrogrid/RaspberryPi/Setup/SetupBootloader.sh
 
-You can now program the PicroBoard with the USB TTL FTDI cable. This Pi can also be used initialize future PicroBoards with HEX code.
+In general, this Pi is now configured initialize future PicroBoards with HEX code.
 

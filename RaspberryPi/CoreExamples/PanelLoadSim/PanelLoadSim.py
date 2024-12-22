@@ -78,17 +78,6 @@ GPIO.setmode(GPIO.BCM)
 bus = smbus2.SMBus(1)
 sleep(2) # Give the I2C device time to settle
 
-# # turn on all channels first
-# for channel in range(1, 5):
-#     success = False
-#     command = "WCH"+str(channel)+":1\n"
-#     while not success:
-#         [outString, success] = sendI2CCommand(panelAddress, command)
-#         if (outString[0:4] != command[0:4]):
-#             print("Failed to set channel. outString: " + outString)
-#             success = False
-#         sleep(0.2)
-
 # set up monitoring loop
 header = "Year,Month,Day,Hour,Minute,Second," + "VBus,I1,I2,I3,I4,CH1,CH2,CH3,CH4"
 print(header)
