@@ -46,10 +46,10 @@ enum SensorIndex
 //  use this before #include to override in the .ino file: #define XXX YY
 //  e.g. to set current averaging window to size 32: #define SENSOR_I_WINDOW_MAX 32
 #ifndef SENSOR_V_WINDOW_MAX
-#define SENSOR_V_WINDOW_MAX 4
+#define SENSOR_V_WINDOW_MAX 32
 #endif
 #ifndef SENSOR_I_WINDOW_MAX
-#define SENSOR_I_WINDOW_MAX 16
+#define SENSOR_I_WINDOW_MAX 32
 #endif
 constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
   SENSOR_V_WINDOW_MAX,
@@ -77,9 +77,11 @@ class MicroPanelH : public PicroBoard
     void setCh2(int state); // sets the state of Channel 2
     void setCh3(int state); // sets the state of Channel 3
     void setCh4(int state); // sets the state of Channel 4
-    void setChannel(int chPin, int state, int holdProtectMicroseconds); // set channel and hold a bit
+    void setChannel(int chPin, int state, bool hardwareShutoffEnabled, int holdProtectMicroseconds); // set channel
     void setDefaultInrushOverride(int holdProtectMicroseconds); // set all default switch hold delays
     void setDefaultInrushOverride(int channel1234, int holdProtectMicroseconds); // set switch hold delay
+    void disableHardwareShutoff(int channel1234); // Expert Only: disable channel hardware shutoff
+    void enableHardwareShutoff(int channel1234); // Expert Only: enable channel hardware shutoff
     int getCh1(); // gets the state of Channel 1
     int getCh2(); // gets the state of Channel 2
     int getCh3(); // gets the state of Channel 3
@@ -146,7 +148,8 @@ class MicroPanelH : public PicroBoard
     int _currentLimitAmplitudeRaw3 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRaw4 = 444; // the upper raw (0 to 1023) current limit before gate shutoff
     int _currentLimitAmplitudeRawTotal = 1776; // the upper raw total current limit before gate shutoff
-    int _holdProtectMicros[4] = {50, 50, 50, 50}; // default hold time on switch, overrides current limiter for inrush current    int _holdProtectMicros1 = 50; // default hold time on switch, overrides current limiter for inrush current
+    int _holdProtectMicros[4] = {50, 50, 50, 50}; // default microseconds to overrides hardware current shutoff
+    bool _hardwareShutoffEnabled[4] = {true, true, true, true}; // Expert Only: used to disable hardware shutoff
     long _rDroop = 0; // stored droop resistance value
     // functions
     void updateSensorRaw(int index, int sample); // updates the raw averaged sensor value

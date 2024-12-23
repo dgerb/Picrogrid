@@ -58,27 +58,38 @@ void MicroPanelH::initializeInterruptTimer(long periodus, void (*interruptFuncti
 
 // Channel State Set and Get -----------------------------------------------
 
+// set Channel 1 to a state HIGH or LOW
 void MicroPanelH::setCh1(int state) {
-  setChannel(CH1_PIN, state, _holdProtectMicros[0]);
+  setChannel(CH1_PIN, state, _hardwareShutoffEnabled[0], _holdProtectMicros[0]);
 }
 
+// set Channel 2 to a state HIGH or LOW
 void MicroPanelH::setCh2(int state) {
-  setChannel(CH2_PIN, state, _holdProtectMicros[1]);
+  setChannel(CH2_PIN, state, _hardwareShutoffEnabled[1], _holdProtectMicros[1]);
 }
 
+// set Channel 3 to a state HIGH or LOW
 void MicroPanelH::setCh3(int state) {
-  setChannel(CH3_PIN, state, _holdProtectMicros[2]);
+  setChannel(CH3_PIN, state, _hardwareShutoffEnabled[2], _holdProtectMicros[2]);
 }
 
+// set Channel 4 to a state HIGH or LOW
 void MicroPanelH::setCh4(int state) {
-  setChannel(CH4_PIN, state, _holdProtectMicros[3]);
+  setChannel(CH4_PIN, state, _hardwareShutoffEnabled[3], _holdProtectMicros[3]);
 }
 
-void MicroPanelH::setChannel(int chPin, int state, int holdProtectMicroseconds) {
+// generic set channel function
+// chPin - pin number cooresponding to the channel gate (e.g. CH1_PIN)
+// state - desired channel state, HIGH or LOW
+// hardwareShutoffEnabled - when setting the channel, should we keep the hardware shutoff enabled?
+// holdProtectMicroseconds - microsecond duration during which we disable hardware shutoff before re-enabling
+void MicroPanelH::setChannel(int chPin, int state, bool hardwareShutoffEnabled, int holdProtectMicroseconds) {
   pinMode(chPin, OUTPUT);
   digitalWrite(chPin, state);
-  delayMicroseconds(holdProtectMicroseconds);
-  pinMode(chPin, INPUT);
+  if(hardwareShutoffEnabled) {
+    delayMicroseconds(holdProtectMicroseconds);
+    pinMode(chPin, INPUT);
+  }
 }
 
 void MicroPanelH::setDefaultInrushOverride(int holdProtectMicroseconds) {
@@ -92,6 +103,50 @@ void MicroPanelH::setDefaultInrushOverride(int channel1234, int holdProtectMicro
   if(channel1234 < 1 || channel1234 > 4)
     return;
   _holdProtectMicros[channel1234-1] = holdProtectMicroseconds;
+}
+
+// Expert Only: disable channel hardware shutoff
+void MicroPanelH::disableHardwareShutoff(int channel1234) {
+  switch(channel1234) {
+  case 1:
+    _hardwareShutoffEnabled[0] = false;
+    pinMode(CH1_PIN, OUTPUT);
+    break;
+  case 2:
+    _hardwareShutoffEnabled[1] = false;
+    pinMode(CH2_PIN, OUTPUT);
+    break;
+  case 3:
+    _hardwareShutoffEnabled[2] = false;
+    pinMode(CH3_PIN, OUTPUT);
+    break;
+  case 4:
+    _hardwareShutoffEnabled[3] = false;
+    pinMode(CH4_PIN, OUTPUT);
+    break;
+  }
+}
+
+// Expert Only: enable channel hardware shutoff
+void MicroPanelH::enableHardwareShutoff(int channel1234) {
+  switch(channel1234) {
+  case 1:
+    _hardwareShutoffEnabled[0] = true;
+    pinMode(CH1_PIN, INPUT);
+    break;
+  case 2:
+    _hardwareShutoffEnabled[1] = true;
+    pinMode(CH2_PIN, INPUT);
+    break;
+  case 3:
+    _hardwareShutoffEnabled[2] = true;
+    pinMode(CH3_PIN, INPUT);
+    break;
+  case 4:
+    _hardwareShutoffEnabled[3] = true;
+    pinMode(CH4_PIN, INPUT);
+    break;
+  }
 }
 
 int MicroPanelH::getCh1() {
@@ -487,22 +542,22 @@ void MicroPanelH::interpretRXCommand(char* command, char* value, int receiveProt
   } else if (strcmp(command, "WCH1") == 0) { // write the desired terminal 1 state
     int temp = atoi(value);
     setCh1(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WCH1:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCH1:=%d", getCh1());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WCH2") == 0) { // write the desired terminal 2 state
     int temp = atoi(value);
     setCh2(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WCH2:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCH2:=%d", getCh2());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WCH3") == 0) { // write the desired terminal 3 state
     int temp = atoi(value);
     setCh3(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WCH3:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCH3:=%d", getCh3());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WCH4") == 0) { // write the desired terminal 4 state
     int temp = atoi(value);
     setCh4(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WCH4:=%d", temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCH4:=%d", getCh4());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WIL1") == 0) { // write the terminal 1 current shutdown limit (mA)
     int temp = atoi(value);

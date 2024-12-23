@@ -164,22 +164,22 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
       if (temp == 1 && micropanel.getCh1() == 0 && vBat < vActivate)
         temp = 0;
       micropanel.setCh1(temp);
-      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP1:=%d", temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP1:=%d", micropanel.getCh1());
     } else if (strcmp(command, "WCP2") == 0) { // write the desired terminal 2 state
       if (temp == 1 && micropanel.getCh2() == 0 && vBat < vActivate)
         temp = 0;
       micropanel.setCh2(temp);
-      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP2:=%d", temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP2:=%d", micropanel.getCh2());
     } else if (strcmp(command, "WCP3") == 0) { // write the desired terminal 3 state
       if (temp == 1 && micropanel.getCh3() == 0 && vBat < vActivate)
         temp = 0;
       micropanel.setCh3(temp);
-      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP3:=%d", temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP3:=%d", micropanel.getCh3());
     } else if (strcmp(command, "WCP4") == 0) { // write the desired terminal 4 state
       if (temp == 1 && micropanel.getCh4() == 0 && vBat < vActivate)
         temp = 0;
       micropanel.setCh4(temp);
-      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", micropanel.getCh4());
     }
     micropanel.respondToMaster(receiveProtocol);
   }
