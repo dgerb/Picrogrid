@@ -10,7 +10,7 @@
 # to start a session through ssh and log off:
 # sudo apt install tmux
 # tmux
-# python3 ~/Picrogrid/RaspberryPi/CoreExamples/PanelLoadSim/PanelLoadSim.py &
+# python3 ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/SmartPanelDashboard.py &
 # <ctrl+b and $ (to name session)>
 # <ctrl+b and d (to exit tmux)>
 
@@ -134,8 +134,9 @@ def check_for_button():
             chSelect = row['channel']
             print("Channel " + str(chSelect) + " button pressed")
             if chSelect == 1 or chSelect == 2 or chSelect == 3 or chSelect == 4:
-                readVals[CH1IND + chSelect - 1] = not readVals[CH1IND + chSelect - 1]
+                readVals[CH1IND + chSelect - 1] = int(not readVals[CH1IND + chSelect - 1])
                 writeCommand = writeCommands[chSelect - 1]+":"+str(readVals[CH1IND + chSelect - 1])+"\n"
+                print(writeCommand)
                 [outString, success] = sendI2CCommand(panelAddress, writeCommand)
     cursor.execute("""DELETE FROM channelWrite""")
     db_connection.commit()  # Commit the changes to the database

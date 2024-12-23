@@ -27,10 +27,10 @@ sleep 2
 # Set up MariaDB database on Pi
 # Tested with mariadb-server version: 1:10.5.26-0+deb11u2
 cd ~
-DIR="./Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard"
-DB_USER="panelpi"
-DB_PW="panelpipw"
-DB_NAME="paneldb"
+export DIR="./Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard"
+export DB_USER="panelpi"
+export DB_PW="panelpipw"
+export DB_NAME="paneldb"
 # Install and initialize MariaDB (a type of MySQL database that works great on a Pi)
 sudo apt install mariadb-server -y
 sudo systemctl start mariadb
@@ -38,14 +38,15 @@ sudo systemctl enable mariadb
 pip3 install mysql-connector-python
 pip3 install smbus2
 # Create a new database with the proper settings
+sudo mysql -u root -p -e "SET GLOBAL time_zone = '+00:00';"
 sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
 sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
 sudo mysql -u root -p $DB_NAME < $DIR/SetupFiles/DBSetup.sql
 
 # Install Grafana on Pi
 # Tested with grafana version 11.4.0
-GRAFANA_ADMIN_PW="panelpipw"
-GRAFANA_ADMIN_TOKEN=$(echo -n 'admin:'$GRAFANA_ADMIN_PW | base64)
+export GRAFANA_ADMIN_PW="panelpipw"
+export GRAFANA_ADMIN_TOKEN=$(echo -n 'admin:'$GRAFANA_ADMIN_PW | base64)
 # Add the APT key used to authenticate packages and add the Grafana APT repository
 sudo mkdir -p /etc/apt/keyrings/
 wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
