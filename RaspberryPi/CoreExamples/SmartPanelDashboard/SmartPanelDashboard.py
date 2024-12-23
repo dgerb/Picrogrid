@@ -175,14 +175,13 @@ if __name__ == "__main__":
     while True:
         # Read data from the PicroBoard
         readPicroBoard()
-        sleep(0.2)
+        sleep(0.5) # Give a nice and long delay to make sure things got read and recorded properly
 
         # Check if button pressed in Grafana dashboard, send write channel command if so
-        check_for_button()
-        sleep(0.2)
+        if check_for_button():
+            sleep(0.5) # Give a nice and long delay to make sure things got written properly
 
         # Store data in DB for Grafana to read
         insert_data()
         sleep(0.2)
-
 
