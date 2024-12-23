@@ -36,6 +36,7 @@ sudo apt install mariadb-server -y
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
 pip3 install mysql-connector-python
+pip3 install smbus2
 # Create a new database with the proper settings
 sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
 sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
@@ -65,10 +66,6 @@ sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRA
 sudo /bin/systemctl restart grafana-server
 # Add the MariaDB database as a data source for Grafana
 sleep 10 # must wait a bit after restart before can send http requests
-curl -X POST -H "Content-Type: application/json" -u admin:$GRAFANA_ADMIN_PW \
-  --data @$DIR/SetupFiles/mariadb_datasource.json \
-  http://localhost:3000/api/datasources
-sleep 3
 curl -X POST \
   http://localhost:3000/api/datasources \
   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \

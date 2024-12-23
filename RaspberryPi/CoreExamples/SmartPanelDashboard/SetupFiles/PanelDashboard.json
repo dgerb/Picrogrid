@@ -418,7 +418,7 @@
                 }
               ]
             },
-            "unit": "volt"
+            "unit": "amp"
           },
           "overrides": []
         },
