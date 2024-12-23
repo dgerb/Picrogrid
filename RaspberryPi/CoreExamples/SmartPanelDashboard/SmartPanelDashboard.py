@@ -91,6 +91,28 @@ def sendI2CCommand(address, command):
         outString = '???'
         return [outString, False]
 
+def readPicroBoard():
+    global readVals
+    global readCommands
+    global panelAddress
+    failureCounter = 0
+    for n in range(len(readCommands)):
+        [outString, success] = sendI2CCommand(panelAddress, readCommands[n]+":\n")
+        parsedOutStr = parseValueStr(outString)
+        if success and represents_int(parsedOutStr):
+            readVals[n] = int(parsedOutStr)
+        else:
+            failureCounter = failureCounter + 1
+        sleep(0.2)
+    # If too many i2c communications exceptions, i2c bus is likely stuck and must be reset
+    if failureCounter > len(readCommands)-2:
+        print("resetting PicroBoards in order to clear the I2C bus...\n")
+        pin = 24
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+
 # Connect to MariaDB
 def connect_to_db():
     return mysql.connector.connect(
@@ -136,7 +158,6 @@ def check_for_button():
             if chSelect == 1 or chSelect == 2 or chSelect == 3 or chSelect == 4:
                 readVals[CH1IND + chSelect - 1] = int(not readVals[CH1IND + chSelect - 1])
                 writeCommand = writeCommands[chSelect - 1]+":"+str(readVals[CH1IND + chSelect - 1])+"\n"
-                print(writeCommand)
                 [outString, success] = sendI2CCommand(panelAddress, writeCommand)
     cursor.execute("""DELETE FROM channelWrite""")
     db_connection.commit()  # Commit the changes to the database
@@ -153,23 +174,7 @@ if __name__ == "__main__":
     sleep(2) # Give the I2C device time to settle
     while True:
         # Read data from the PicroBoard
-        failureCounter = 0
-        for n in range(len(readCommands)):
-            [outString, success] = sendI2CCommand(panelAddress, readCommands[n]+":\n")
-            parsedOutStr = parseValueStr(outString)
-            if success and represents_int(parsedOutStr):
-                readVals[n] = int(parsedOutStr)
-            else:
-                failureCounter = failureCounter + 1
-            sleep(0.2)
-        # If too many i2c communications exceptions, i2c bus is likely stuck and must be reset
-        if failureCounter > len(readCommands)-2:
-            print("resetting PicroBoards in order to clear the I2C bus...\n")
-            pin = 24
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, False)
-            GPIO.output(pin, True)
-            GPIO.setup(pin, GPIO.IN)
+        readPicroBoard()
         sleep(0.2)
 
         # Check if button pressed in Grafana dashboard, send write channel command if so
