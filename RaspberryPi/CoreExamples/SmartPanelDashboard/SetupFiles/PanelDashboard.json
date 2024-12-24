@@ -226,12 +226,12 @@
             "dataset": "paneldb",
             "editorMode": "builder",
             "format": "table",
-            "rawSql": "SELECT ch1 AS \"Channel 1\", ch2 AS \"Channel 2\", ch3 AS \"Channel 3\", ch4 AS \"Channel 4\" FROM paneldb.channelRead ",
+            "rawSql": "SELECT ch1 AS \"CH 1\", ch2 AS \"CH 2\", ch3 AS \"CH 3\", ch4 AS \"CH 4\" FROM paneldb.channelRead ",
             "refId": "A",
             "sql": {
               "columns": [
                 {
-                  "alias": "\"Channel 1\"",
+                  "alias": "\"CH 1\"",
                   "parameters": [
                     {
                       "name": "ch1",
@@ -241,7 +241,7 @@
                   "type": "function"
                 },
                 {
-                  "alias": "\"Channel 2\"",
+                  "alias": "\"CH 2\"",
                   "parameters": [
                     {
                       "name": "ch2",
@@ -251,7 +251,7 @@
                   "type": "function"
                 },
                 {
-                  "alias": "\"Channel 3\"",
+                  "alias": "\"CH 3\"",
                   "parameters": [
                     {
                       "name": "ch3",
@@ -261,7 +261,7 @@
                   "type": "function"
                 },
                 {
-                  "alias": "\"Channel 4\"",
+                  "alias": "\"CH 4\"",
                   "parameters": [
                     {
                       "name": "ch4",
@@ -307,22 +307,22 @@
             {
               "datasource": "MariaDB",
               "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (1, TRUE);\",\n    \"format\": \"table\"\n}",
-              "text": "Channel 1"
+              "text": "CH 1"
             },
             {
               "datasource": "MariaDB",
               "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (2, TRUE);\",\n    \"format\": \"table\"\n}",
-              "text": "Channel 2"
+              "text": "CH 2"
             },
             {
               "datasource": "MariaDB",
               "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (3, TRUE);\",\n    \"format\": \"table\"\n}",
-              "text": "Channel 3"
+              "text": "CH 3"
             },
             {
               "datasource": "MariaDB",
               "query": "{\n    \"dataset\": \"paneldb\",\n    \"rawSql\": \"INSERT INTO channelWrite (channel, state) VALUES (4, TRUE);\",\n    \"format\": \"table\"\n}",
-              "text": "Channel 4"
+              "text": "CH 4"
             }
           ],
           "orientation": "horizontal"
@@ -536,7 +536,7 @@
     "timezone": "browser",
     "title": "PanelDashboard",
     "uid": "de7c0i5dtnsaod",
-    "version": 2,
+    "version": 3,
     "weekStart": ""
   },
   "folderId":0,
