@@ -50,10 +50,10 @@ long coulombCounter = 0; // coulomb counter (mA-sec)
 long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
 
 // cumulative moving average for channel 4 software shutoff
-const int ICH4LIMIT = 5000; // channel 4 cumulative average current limit (mA)
+const int ICH4LIMIT = 4500; // channel 4 cumulative average current limit (mA)
 const int CH4AVGWINDOW = 8; // moving average window size
 int iCh4Limit = 0;
-int iCh4Average = 0; // ch4 current moving average
+int iCh4Acc[CH4AVGWINDOW] = {0}; // accumulator for moving average
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -118,10 +118,18 @@ void controlUpdate(void)
     slowInterruptCounter = 0;
     micropanel.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
 
-    // check ch4 current cumulative average is less than the channel 4 limit
+    // check ch4 current moving average is less than the channel 4 limit
     int iCh4 = micropanel.getRawI4();
-    long iCh4Acc = (long) iCh4Average * (CH4AVGWINDOW - 1); // we use a cumulative moving average
-    iCh4Average = (iCh4Acc + iCh4) / CH4AVGWINDOW; // division could be optimized if needed
+    // update moving average accumulator
+    long iCh4Average = 0;
+    for (int n = 1; n < CH4AVGWINDOW; n++) {
+      iCh4Acc[n-1] = iCh4Acc[n];
+      iCh4Average = iCh4Average + iCh4Acc[n];
+    }
+    iCh4Acc[CH4AVGWINDOW - 1] = iCh4;
+    iCh4Average = iCh4Average + iCh4Acc[0];
+    iCh4Average = iCh4Average/CH4AVGWINDOW;
+    // check if moving average is less than limit
     if (iCh4Average > iCh4Limit) {
       micropanel.setCh4(LOW);
     }

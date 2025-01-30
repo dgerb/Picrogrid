@@ -54,6 +54,7 @@ echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stab
 # Install Grafana and ButtonPanel plugin
 sudo apt-get update
 sudo apt-get install -y grafana
+sudo apt install -y jq
 sudo grafana-cli plugins install speakyourcode-button-panel
 # Set Grafana such that other local machines can access the server hosted on port 3000
 sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
@@ -88,17 +89,6 @@ curl -X POST \
         },
         "uid": "fe7briho1xcsgd"
       }'
-# Create a new view-only user
-sleep 3 # must wait a bit after between curl requests
-curl -X POST http://localhost:3000/api/admin/users \
--H "Content-Type: application/json" \
--H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
--d '{
-      "name": "customer",
-      "login": "customer",
-      "password": "customer",
-      "role": "Viewer"
-    }'
 # Import dashboard info
 #   After exporting a dashboard, must format the .json file slightly to import from REST API
 #   {“dashboard”:{
@@ -112,4 +102,51 @@ curl -X POST \
   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
   -d @$DIR/SetupFiles/PanelDashboard.json \
   http://localhost:3000/api/dashboards/db
+# Create a new view-only user
+sleep 3 # must wait a bit after between curl requests
+curl -X POST http://localhost:3000/api/admin/users \
+-H "Content-Type: application/json" \
+-H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+-d '{
+      "name": "customer",
+      "login": "customer",
+      "password": "customer",
+      "role": "Viewer"
+    }'
+# # Assign new user as a viewer
+# #   First get "custmer" user UID
+# #   Second get "PanelDashboard" dashboard UID
+# #   Third, use them both to assign
+# userresponse=$(curl -X GET "http://localhost:3000/api/users" \
+#   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN)
+# useruid=$(echo "$userresponse" | jq -r '.[1].uid')
+# dashboardresponse=$(curl -X GET "http://localhost:3000/api/search?query=PanelDashboard" \
+#   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN)
+# dashboarduid=$(echo "$dashboardresponse" | jq -r '.[0].uid')
+# curl -X POST "http://localhost:3000/api/dashboards/uid/de7c0i5dtnsaod/permissions" \
+# -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+# -H "Content-Type: application/json" \
+# -d '{
+#     "permission": 1,
+#     "userUid": "$useruid"
+#   }'
 
+curl -X PUT "https://localhost:3000/api/dashboards/uid/de7c0i5dtnsaod" \
+     -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+     -H "Content-Type: application/json" \
+     -d '{
+          "dashboard": {
+            "uid": "de7c0i5dtnsaod"
+          },
+          "overwrite": true,
+          "meta": {
+            "starred": true
+          }
+        }'
+
+
+curl -X POST "https://localhost:3000/api/user/favorites" \
+  -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+  -H "Content-Type: application/json" \
+  -d '{"dashboardUid": "de7c0i5dtnsaod"}'
+  

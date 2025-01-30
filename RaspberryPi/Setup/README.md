@@ -2,7 +2,20 @@
 
 These instructions will let you set up a Raspberry Pi to flash Atmega328P microcontroller on a PicroBoard. It allows you to flash the bootloader, enabling the PicroBoard to be programmable via the USB TTL FTDI 5V cable from the Arduino environment. It also sets up the Pi to program HEX code to the PicroBoard directly via the SPI pins.
 
-## Flash Pi with BerryLan
+## Option 1: Flash Pi with Raspberry Pi Imager
+
+Download the Raspberry Pi Imager:
+https://www.raspberrypi.com/software/
+
+Insert your micro SD card. In the imager, select the appropriate type of Raspberry Pi, the recommended Raspbian OS, and the SD card's drive image.
+
+You will want to edit customization settings. Enter the desired hostname, username, and password. Typical defaults are raspberrypi, pi, raspberry. Enter the WiFi network name and password. Select the box for Show Password. On the next tab, select to enable SSH.
+
+Flash the SD card and put it into the Raspberry Pi. The Pi should boot up and connect to your WiFi network with SSH enabled. 
+
+## Option 2: Flash Pi with BerryLan
+
+BerryLan lets you connect your Pi for headless startup using a phone app, similar to how you would connect any smart device to your WiFi network. The main advantage is that BerryLan makes it easy to reconnect the Pi if the WiFi network's name or password changes.
 
 Download BerryLan enabled Raspbian image from URL (find the "Raspbian image" link):
 https://github.com/nymea/berrylan

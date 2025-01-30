@@ -328,37 +328,7 @@
           "orientation": "horizontal"
         },
         "pluginVersion": "0.3.2",
-        "targets": [
-          {
-            "dataset": "paneldb",
-            "editorMode": "builder",
-            "format": "table",
-            "rawSql": "SELECT ch1 FROM paneldb.channelRead ",
-            "refId": "A",
-            "sql": {
-              "columns": [
-                {
-                  "parameters": [
-                    {
-                      "name": "ch1",
-                      "type": "functionParameter"
-                    }
-                  ],
-                  "type": "function"
-                }
-              ],
-              "groupBy": [
-                {
-                  "property": {
-                    "type": "string"
-                  },
-                  "type": "groupBy"
-                }
-              ]
-            },
-            "table": "channelRead"
-          }
-        ],
+        "targets": [],
         "title": "Channel Switches",
         "type": "speakyourcode-button-panel"
       },
@@ -536,7 +506,7 @@
     "timezone": "browser",
     "title": "PanelDashboard",
     "uid": "de7c0i5dtnsaod",
-    "version": 3,
+    "version": 2,
     "weekStart": ""
   },
   "folderId":0,
