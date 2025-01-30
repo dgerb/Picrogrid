@@ -34,7 +34,7 @@ void PicroBoard::interpretRXCommand(char* command, char* value, int receiveProto
 void PicroBoard::respondToMaster(int receiveProtocol) { // responds to the raspberry Pi
   switch (receiveProtocol) {
     case UART_INDEX:
-      // Serial.println(_txBuffer[UART_INDEX]); // for debugging only (adds a bad delay otherwise)
+      Serial.println(_txBuffer[UART_INDEX]);
       _txBuffer[UART_INDEX][0] = '\0';
       break;
     case I2C_INDEX:
