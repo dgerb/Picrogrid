@@ -37,7 +37,7 @@ long slowInterruptCounter = 0;
 const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
 const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
-const unsigned int RINTERNAL = 100*4; // estimated internal resistance (mohms)
+const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
 const unsigned int VACTIVATE = VBATMIN + 2000; // if undervoltage cutoff, needs this voltage to reactivate
 
 // Battery Converter global variables
@@ -50,7 +50,7 @@ long coulombCounter = 0; // coulomb counter (mA-sec)
 long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
 
 // cumulative moving average for channel 4 software shutoff
-const int ICH4LIMIT = 4500; // channel 4 cumulative average current limit (mA)
+const int ICH4LIMIT = 5000; // channel 4 moving average current limit (mA)
 const int CH4AVGWINDOW = 8; // moving average window size
 int iCh4Limit = 0;
 int iCh4Acc[CH4AVGWINDOW] = {0}; // accumulator for moving average
