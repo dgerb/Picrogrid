@@ -31,19 +31,19 @@ bool stepUp = false;
 //   D*y[n] + E*y[n-1] + F*y[n-2] = A*x[n] + B*x[n-1] + C*x[n-2]
 //   y[n] = (A*x[n] + B*x[n-1] + C*x[n-2] - E*y[n-1] - F*y[n-2])/D
 
-// // Uncomment for phase margin: 81°
-int compNum [] = {8, 0};
-int compDen [] = {8, -8};
+// // // Uncomment for phase margin: 81°
+// int compNum [] = {8, 0};
+// int compDen [] = {8, -8};
 
-// // Uncomment for phase margin: 119°
-// int compNum [] = {12, -10, 0};
-// int compDen [] = {8, -12, 4};
+// Uncomment for phase margin: 119°
+int compNum [] = {12, -10, 0};
+int compDen [] = {8, -12, 4};
 
 // // Uncomment for phase margin: 27°
 // int compNum [] = {4, 0, 0};
 // int compDen [] = {8, -14, 6};
 
-int VREF = atverter.mV2raw(8000);
+int VREF = 0;
 
 // the setup function runs once when you press reset or power the board
 void setup() {
@@ -51,8 +51,8 @@ void setup() {
 
   atverter.setupPinMode(); // set pins to input or output
   atverter.initializeSensors(); // set filtered sensor values to initial reading
-  atverterH.setCurrentShutdown1(6000); // set gate shutdown at 6A peak current 
-  atverterH.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
+  atverter.setCurrentShutdown1(6000); // set gate shutdown at 6A peak current 
+  atverter.setCurrentShutdown2(6000); // set gate shutdown at 6A peak current 
   atverter.setThermalShutdown(60); // set gate shutdown at 60°C temperature
 
   // set discrete compensator coefficients for use in classical feedback compensation
@@ -60,8 +60,9 @@ void setup() {
 
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
   atverter.applyHoldHigh2(); // hold side 2 high for a buck converter with side 1 input
-  atverter.setDutyCycle(50);
-  atverter.startPWM();
+  atverter.startPWM(50);
+
+  VREF = atverter.mV2raw(8000);
 }
 
 void loop() { } // we don't use loop() because it does not loop at a fixed period
