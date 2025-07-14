@@ -41,7 +41,7 @@ AtverterH atverter;
 
 const int DCDCMODE = BUCK; // BUCK, BOOST, BUCKBOOST
 const int VLIMDEFAULT = 15000; // default voltage limit setting in mV
-const int ILIMDEFAULT = 500; // default current limit setting in mA
+const int ILIMDEFAULT = 1000; // default current limit setting in mA
 const int UVLODEFAULT = 22000; // default under-voltage lockout limit (disable converter when source below UVLO limit)
 
 // discrete compensator coefficients
@@ -91,13 +91,16 @@ void setup() {
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 }
 
-void loop() { } // we don't use loop() because it does not loop at a fixed period
+// during loop(), analog read the voltage and current sensors and update their moving averages
+// for reference, loop() usually takes 112-148 microseconds
+void loop() {
+  atverter.updateVISensors(); // read voltage and current sensors and update moving average
+}
 
 // main controller update function, which runs on every timer interrupt
 void controlUpdate(void)
 {
   atverter.readUART(); // if using UART, check every cycle if there are new characters in the UART buffer
-  atverter.updateVISensors(); // read voltage and current sensors and update moving average
   atverter.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 

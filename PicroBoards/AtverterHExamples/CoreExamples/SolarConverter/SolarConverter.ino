@@ -129,14 +129,17 @@ void setup() {
   atverter.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms
 }
 
-void loop() { } // we don't use loop() because it does not loop at a fixed period
+// during loop(), analog read the voltage and current sensors and update their moving averages
+// for reference, loop() usually takes 112-148 microseconds
+void loop() {
+  atverter.updateVISensors(); // read voltage and current sensors and update moving average
+}
 
 // main controller update function, which runs on every timer interrupt
 void controlUpdate(void)
 {
   // periodic update functions for normal operation
   atverter.readUART(); // if using UART, check every cycle if there are new characters in the UART buffer
-  atverter.updateVISensors(); // read voltage and current sensors and update moving average
   atverter.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 

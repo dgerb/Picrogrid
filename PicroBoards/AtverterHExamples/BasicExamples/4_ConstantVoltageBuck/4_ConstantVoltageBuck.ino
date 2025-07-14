@@ -65,12 +65,16 @@ void setup() {
   VREF = atverter.mV2raw(8000);
 }
 
-void loop() { } // we don't use loop() because it does not loop at a fixed period
+// during loop(), analog read the voltage and current sensors and update their moving averages
+// for reference, loop() usually takes 112-148 microseconds
+void loop() {
+  atverter.updateVISensors(); // read voltage and current sensors and update moving average
+}
 
 // main controller update function, which runs on every timer interrupt
+// for reference, controlUpdate() usually takes about 20-30 microseconds
 void controlUpdate(void)
 {
-  atverter.updateVISensors(); // read voltage and current sensors and update moving average
   atverter.checkCurrentShutdown(); // checks average current and shut down gates if necessary
   atverter.checkBootstrapRefresh(); // refresh bootstrap capacitors on a timer
 
@@ -114,9 +118,9 @@ void controlUpdate(void)
       Serial.println("Gradient Descent");
     }
     Serial.print("VREF: ");
-    Serial.println(VREF);
+    Serial.println(atverter.raw2mV(VREF));
     Serial.print("VOut: ");
-    Serial.println(vOut);
+    Serial.println(atverter.raw2mV(vOut));
     Serial.print("VErr: ");
     Serial.println(vErr);
     Serial.print("Duty: ");
