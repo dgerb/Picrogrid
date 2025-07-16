@@ -58,25 +58,56 @@ enum SensorIndex
     NUM_SENSORS
 };
 
+// moving average sample window length and bit shift for sensors
+//  for optimization, we use bit-shift in place of division to calculate the average
+//  the moving average window size is equal to 2 to the power of the moving average bit-shift value
+//    e.g. for a moving average window size 32, the appropriate bit-shift value is 5
+//  in the .ino file, use #define statements before #include to override bit-shift values: #define XXX YY
+//    e.g. to set voltage averaging bit-shift to 5 (window size = 2^5 = 32): #define SENSOR_V_WINDOW_BS 5
+#ifndef SENSOR_V_WINDOW_BS
+#define SENSOR_V_WINDOW_BS 2
+#endif
+#ifndef SENSOR_I_WINDOW_BS
+#define SENSOR_I_WINDOW_BS 4
+#endif
+#ifndef SENSOR_T_WINDOW_BS
+#define SENSOR_T_WINDOW_BS 2
+#endif
+constexpr int AVERAGE_WINDOW_BS[NUM_SENSORS] = {
+  SENSOR_V_WINDOW_BS,
+  SENSOR_V_WINDOW_BS,
+  SENSOR_I_WINDOW_BS,
+  SENSOR_I_WINDOW_BS,
+  SENSOR_T_WINDOW_BS,
+  SENSOR_T_WINDOW_BS
+};
+constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
+  SENSOR_V_WINDOW_BS*SENSOR_V_WINDOW_BS,
+  SENSOR_V_WINDOW_BS*SENSOR_V_WINDOW_BS,
+  SENSOR_I_WINDOW_BS*SENSOR_I_WINDOW_BS,
+  SENSOR_I_WINDOW_BS*SENSOR_I_WINDOW_BS,
+  SENSOR_T_WINDOW_BS*SENSOR_T_WINDOW_BS,
+  SENSOR_T_WINDOW_BS*SENSOR_T_WINDOW_BS
+};
 // moving average sample window length for sensors. Best to use powers of 2 so as to optimize division
 //  use this before #include to override in the .ino file: #define XXX YY
 //  e.g. to set current averaging window to size 32: #define SENSOR_I_WINDOW_MAX 32
-#ifndef SENSOR_V_WINDOW_MAX
-#define SENSOR_V_WINDOW_MAX 4
-#endif
-#ifndef SENSOR_I_WINDOW_MAX
-#define SENSOR_I_WINDOW_MAX 16
-#endif
-#ifndef SENSOR_T_WINDOW_MAX
-#define SENSOR_T_WINDOW_MAX 4
-#endif
-constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
-  SENSOR_V_WINDOW_MAX,
-  SENSOR_V_WINDOW_MAX,
-  SENSOR_I_WINDOW_MAX,
-  SENSOR_I_WINDOW_MAX,
-  SENSOR_T_WINDOW_MAX,
-  SENSOR_T_WINDOW_MAX};
+// #ifndef SENSOR_V_WINDOW_MAX
+// #define SENSOR_V_WINDOW_MAX 4
+// #endif
+// #ifndef SENSOR_I_WINDOW_MAX
+// #define SENSOR_I_WINDOW_MAX 16
+// #endif
+// #ifndef SENSOR_T_WINDOW_MAX
+// #define SENSOR_T_WINDOW_MAX 4
+// #endif
+// constexpr int AVERAGE_WINDOW_MAX[NUM_SENSORS] = {
+//   SENSOR_V_WINDOW_MAX,
+//   SENSOR_V_WINDOW_MAX,
+//   SENSOR_I_WINDOW_MAX,
+//   SENSOR_I_WINDOW_MAX,
+//   SENSOR_T_WINDOW_MAX,
+//   SENSOR_T_WINDOW_MAX};
 
 // DC-DC operation modes enumerator for convenience
 enum DCDCModes
@@ -238,8 +269,8 @@ class AtverterH : public PicroBoard
     int _compNumSize; // length of compensator numerator
     int _compDenSize; // length of compensator denominator
     int _gradDescCount = 0; // counter for gradient descent contorllers to control step speed
-    int _gradDescSettleMax = SENSOR_V_WINDOW_MAX; // gd counter max, controls step speed, hold during 1st period
-    int _gradDescAverageMax = SENSOR_V_WINDOW_MAX; // gd counter max, controls step speed, average during 2nd period
+    int _gradDescSettleMax = SENSOR_V_WINDOW_BS*SENSOR_V_WINDOW_BS; // gd counter max, controls step speed, hold during 1st period
+    int _gradDescAverageMax = SENSOR_V_WINDOW_BS*SENSOR_V_WINDOW_BS; // gd counter max, controls step speed, average during 2nd period
     int _gradDescErrorAcc = 0; // error accumulator for gradient descent averaging
     // diagnostics
     int _shutdownCode = 0;

@@ -56,8 +56,8 @@ void AtverterH::initializeSensors() {
 void AtverterH::initializeInterruptTimer(long periodus, void (*interruptFunction)(void)) {
   Timer1.initialize(periodus); // arg: period in microseconds
   Timer1.attachInterrupt(interruptFunction); // arg: interrupt function to call
-  // _bootstrapCounterMax = 10000/periodus; // refresh bootstrap capacitors every 10ms
-  _bootstrapCounterMax = 1000/periodus; // refresh bootstrap capacitors every 10ms
+  _bootstrapCounterMax = 10000/periodus; // refresh bootstrap capacitors every 10ms
+  // _bootstrapCounterMax = 1000/periodus; // refresh bootstrap capacitors every 1ms
   if (_bootstrapCounterMax < 1)
     _bootstrapCounterMax = 1;
   refreshBootstrap();
@@ -212,7 +212,8 @@ void AtverterH::updateSensorRaw(int index, int sample) {
   sensorPast[_sensorIterators[index]] = sample;
   _sensorAccumulators[index] += sensorPast[_sensorIterators[index]];
   // update sensor average
-  _sensorAverages[index] = (int)(_sensorAccumulators[index]/AVERAGE_WINDOW_MAX[index]);
+  _sensorAverages[index] = (int)(_sensorAccumulators[index]>>AVERAGE_WINDOW_BS[index]);
+  // _sensorAverages[index] = (int)(_sensorAccumulators[index]/AVERAGE_WINDOW_MAX[index]);
   // increment iterator (or return it to zero)
   _sensorIterators[index] ++;
   if (_sensorIterators[index] >= AVERAGE_WINDOW_MAX[index])
