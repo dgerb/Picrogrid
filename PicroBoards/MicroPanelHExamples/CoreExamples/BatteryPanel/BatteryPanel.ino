@@ -96,13 +96,14 @@ void setup() {
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
 }
 
-void loop() { } // we don't use loop() because it does not loop at a fixed period
+void loop() {
+  micropanel.updateVISensors(); // read voltage and current sensors and update moving average
+}
 
 // main controller update function, which runs on every timer interrupt
 void controlUpdate(void)
 {
   micropanel.readUART(); // if using UART, check every cycle if there are new characters in the UART buffer
-  micropanel.updateVISensors(); // read voltage and current sensors and update moving average
   micropanel.checkCurrentShutdown(); // checks average current and shut down gates if necessary
 
   int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage

@@ -32,12 +32,13 @@ void setup() {
   Serial.begin(38400); // in this example, send messages to computer via basic UART serial
 }
 
-void loop() { } // we don't use loop() because it does not loop at a fixed period
+void loop() {
+  micropanel.updateVISensors(); // read voltage and current sensors and update moving average
+}
 
 // main controller update function, which runs on every timer interrupt
 void controlUpdate(void)
 {
-  micropanel.updateVISensors(); // read voltage and current sensors and update moving average
   micropanel.checkCurrentShutdown(); // checks average current and shut down gates if necessary
 
   slowInterruptCounter++; // in this example, do some special stuff every 1 second (1000ms)
