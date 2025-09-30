@@ -527,16 +527,16 @@ void MicroPanelH::interpretRXCommand(char* command, char* value, int receiveProt
   } else if (strcmp(command, "RVCC") == 0) { // read the ~5V VCC bus voltage
     sprintf(getTXBuffer(receiveProtocol), "WVCC:%d", getVCC());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RCH1") == 0) { // read current at terminal 1
+  } else if (strcmp(command, "RCH1") == 0) { // read state of terminal 1
     sprintf(getTXBuffer(receiveProtocol), "WCH1:%d", getCh1());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RCH2") == 0) { // read current at terminal 2
+  } else if (strcmp(command, "RCH2") == 0) { // read state of terminal 2
     sprintf(getTXBuffer(receiveProtocol), "WCH2:%d", getCh2());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RCH3") == 0) { // read current at terminal 3
+  } else if (strcmp(command, "RCH3") == 0) { // read state of terminal 3
     sprintf(getTXBuffer(receiveProtocol), "WCH3:%d", getCh3());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RCH4") == 0) { // read current at terminal 4
+  } else if (strcmp(command, "RCH4") == 0) { // read state of terminal 4
     sprintf(getTXBuffer(receiveProtocol), "WCH4:%d", getCh4());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WCH1") == 0) { // write the desired terminal 1 state
