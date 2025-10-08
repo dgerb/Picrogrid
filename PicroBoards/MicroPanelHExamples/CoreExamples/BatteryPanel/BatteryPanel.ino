@@ -24,6 +24,11 @@
   We can still protect Channel 4 through software. The automatic software shutoff in the library will be too fast for our
   needs, thus we create our own code and timer in controlUpdate for channel 4.
 
+  The BMS calculation does not bother accounting for cell temperature. The temperature can increase by 10°C if the battery is
+  is subject to <1C discharge for a long period. In general, lithium battery pack internal resistance increases by
+  0.5-1% per °C, so we expect the internal resistance to vary at most by 5-10%. In this application (0.5C), that translates to a
+  battery voltage variance of 0.2V out of 48V, which has an overall minimal effect on the SOC calculation's accuracy.
+
   created 20 August 2024
   by Daniel Gerber
 */
@@ -34,6 +39,7 @@ MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
+// we recommend setting VBATTMIN > VBATMINABS + RINTERNAL * IBATDISMAX
 const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
 const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
@@ -41,13 +47,14 @@ const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable 
 const unsigned int VACTIVATE = VBATMIN + 2000; // if undervoltage cutoff, needs this voltage to reactivate
 
 // Battery Converter global variables
+int iBatIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
 unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
 
-// global variables for coulomb counting (relevant for SOC calculations)
-long coulombCounter = 0; // coulomb counter (mA-sec)
-long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
+// // global variables for coulomb counting (relevant for SOC calculations)
+// long coulombCounter = 0; // coulomb counter (mA-sec)
+// long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
 
 // cumulative moving average for channel 4 software shutoff
 const int ICH4LIMIT = 5000; // channel 4 moving average current limit (mA)
@@ -106,9 +113,23 @@ void controlUpdate(void)
   micropanel.readUART(); // if using UART, check every cycle if there are new characters in the UART buffer
   micropanel.checkCurrentShutdown(); // checks average current and shut down gates if necessary
 
+  // analog read battery voltage
   int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
-  int iBat = micropanel.getRawITotal(); // current out of battery (positive)
-
+  /* analog read battery current
+    - the battery output current can be measured by the MicroPanel as the sum of channel currents.
+    - the battery input current must be measured externally, possibly from a PiSupply,
+        uploaded to a Pi, and downloaded to the MicroPanel.
+    - we can generally ignore battery input current for simplicity
+      - this will reduce accuracy of SOC and/or coulumb counting calculations, if that matters to you
+      - for BMS, input current causes vBat to be higher, iBat to be lower, and the vBat minimum threshold to be lower
+        - this means if discharging, any charging will cause BMS to react at a lower SOC
+        - to be safe, you can set VBATTMINABS = VBATTMIN - RINTERNAL * IBATDISMAX, it's conservative, but you can safely
+          ignore battery input current without ever having to worry about overdischarge
+  */
+  int iBatOut = micropanel.getRawITotal(); // current out of battery (positive)
+  int iBat = iBatOut - iBatIn; // iBat represents the raw net current out of the battery
+  
+  // BMS code: turn off loads if battery SOC is too low
   if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
     if (micropanel.isSomeChannelsActive())
       micropanel.shutdownChannels();
@@ -165,6 +186,8 @@ void controlUpdate(void)
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RFN") == 0) {
     readFileName(value, receiveProtocol);
+  } else if (strcmp(command, "WIBIN") == 0) { // record information from the Pi on battery input current
+    writeBattInputCurrent(value, receiveProtocol);
   } else {
     // Write Channel Protected: checks if battery voltage is above activate threshold before enabling channel
     int temp = atoi(value);
@@ -198,6 +221,12 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
 void readFileName(const char* valueStr, int receiveProtocol) {
   sprintf(micropanel.getTXBuffer(receiveProtocol), "WFN:%s", "BatteryPanel.ino");
   micropanel.respondToMaster(receiveProtocol);
+}
+
+// records the battery input current information from the Pi
+void writeBattInputCurrent(const char* valueStr, int receiveProtocol) {
+  int temp = atoi(value);
+  iBatIn = micropanel.mA2raw(temp);
 }
 
   // --- Default Register Guide from Library ---
