@@ -6,7 +6,7 @@
 cp ~/Picrogrid/RaspberryPi/Setup/PicrogridHotspot.nmconnection /etc/NetworkManager/system-connections/PicrogridHotspot.nmconnection
 
 # Must deactivate the current wlan0 network in order to start up the new one
-nmcli connection down preconfigured
+sudo nmcli connection down preconfigured
 
 # Activate the new hotspot network to wlan0
 sudo nmcli con up PicrogridHotspot ifname wlan0
