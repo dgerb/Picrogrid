@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Only works for Raspbian Bookworm, does not work in Trixie as of testing in 11/4/2025 due to a NetworkManager bug
+# Only works for Raspbian Bookworm (Debian 12), does not work in Trixie as of testing in 11/4/2025 due to a NetworkManager bug
 
 # Run this script if you want to configure the Pi as a hotspot, using its WiFi chip to broadcast a network devices can connect to
 # To run: ~/Picrogrid/RaspberryPi/Setup/SetupHotspotMode.sh
@@ -15,6 +15,7 @@ sudo chown root:root /etc/NetworkManager/system-connections/PicrogridHotspot.nmc
 # Inform NetworkManager to reload its connection profiles so it recognizes the newly added file
 sudo nmcli connection reload
 
+echo " "
 echo "Here's the new list of NetworkManager connections:"
 echo " "
 
@@ -24,8 +25,9 @@ sudo nmcli connection show
 echo " "
 echo "Now deactivating the current WiFi connection in order to activate hotspot mode."
 echo "   If you get disconnected from SSH, it is because the WiFi got deactivated."
-echo "   To exit shell, press: return, tilde (.), period (.)"
+echo "   To exit shell, press: return, tilde (~), period (.)"
 echo "Wait for a minute, and then look for the new hotspot WiFi network."
+echo "   If you don't see the new network, try manual entry of SSID/password and select 'WPA' security."
 echo "Default hotspot network settings:"
 echo "   SSID: picrogrid"
 echo "   Password: picrogrid"
