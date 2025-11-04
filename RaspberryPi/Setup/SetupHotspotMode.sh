@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Only run this script if you want to configure the Pi as a hotspot, using its WiFi chip to broadcast a network devices can connect to
+# To run: ~/Picrogrid/RaspberryPi/Setup/SetupHotspotMode.sh
 
 # Copy in PicrogridHotspot NetworkManager profile file, with pre-configured SSID, password, WiFi mode, interface, autoconnect IP address
 sudo cp ~/Picrogrid/RaspberryPi/Setup/PicrogridHotspot.nmconnection /etc/NetworkManager/system-connections/PicrogridHotspot.nmconnection
