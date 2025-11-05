@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+
+# first enable I2C: sudo raspi-config
+# also install smbus2: pip3 install smbus2
+
+# optionally install i2c-tools: sudo apt install i2c-tools
+# check I2C connections with: sudo i2cdetect -y 1
+# note that the Atverters won't show up, but this can test the health of the I2C bus
+
+# to start a session through ssh and log off:
+# sudo apt install tmux
+# tmux
+# python3 ~/Picrogrid/RaspberryPi/CoreExamples/PanelLoadSim/PanelLoadSim.py &
+# <ctrl+b and $ (to name session)>
+# <ctrl+b and d (to exit tmux)>
+
+# to get back into your session:
+# tmux ls
+# tmux attach-session -t <session-name>
+# ps
+# kill -9 <python3 process name>
+# <ctrl+b and d (to exit tmux)>
+# tmux kill-session -t <session-name>
+
+from time import sleep
+import sys
+from datetime import datetime
+import csv
+import smbus2
+import os
+import RPi.GPIO as GPIO
+
+fileName = 'output.csv'
+panelAddress = 0x08
+SDIS = 50 # seconds (per minute) during which we discharge the battery
+AMPS = 4 # discharge amps
+
+def StringToBytes(val):
+    retVal = []
+    for c in val:
+        retVal.append(ord(c))
+    return retVal
+
+def parseValueStr(message):
+    splitArr = message.split(':')
+    if len(splitArr) < 2 or splitArr[0] == "Error":
+        return "Error"
+    else:
+        valueStr = splitArr[1]
+        if valueStr[0] == '=':
+            return "Error"
+        valueStr = valueStr.replace('\n','')
+        valueStr = valueStr.replace('\r','')
+        return valueStr
+
+def sendI2CCommand(address, command):
+    try:
+        byteValue = StringToBytes(command) # I2C requires bytes
+        bus.write_i2c_block_data(address, 0x00, byteValue) # Send the byte packet to the slave.
+        sleep(0.2)
+        data = bus.read_i2c_block_data(address, 0x00, 32) # Send a register byte to slave with request flag.
+        outString = ""
+        for n in data:
+            if n==255: # apparently this is the python char conversion result of '\0' in C++
+                break
+            outString = outString + chr(n) # assemble the byte result as a string to print
+        return [outString, True]
+    except:
+        outString = '???'
+        return [outString, False]
+
+print("Remember to make sure I2C is enabled in raspi-config.")
+GPIO.setmode(GPIO.BCM)
+bus = smbus2.SMBus(1)
+sleep(2) # Give the I2C device time to settle
+
+# set up monitoring loop
+header = "Minute," + "Discharged (A*s)," + "VBus @0A," + "VBus @4A"
+print(header)
+with open(fileName, 'w') as the_file:
+    the_file.write(header + '\n')
+lastMinute = -1
+secondsCounter = 0
+dataIndex = 0
+accumulator = [0, 0]
+quantity = [0, 0]
+failureCounter = 0
+dischargeAcc = 0
+
+# main monitoring loop
+while True:
+    sleep(1) # first sleep 1 second
+    secondsCounter = secondsCounter + 1
+
+    # read the bus voltage and store that data into the proper accumulator
+    [outString, success] = sendI2CCommand(panelAddress, "RVB:\n")
+    if success:
+        vbus = int(outString)
+        if vbus < 35: # if battery internal BMS cuts off and bus voltage droops
+            sys.exit()
+        accumulator[dataIndex] = accumulator[dataIndex] + vbus
+        quantity[dataIndex] = quantity[dataIndex] + 1
+    else:
+        failureCounter = failureCounter + 1
+
+    if secondsCounter < SDIS:
+        dataIndex = 0
+    elif secondsCounter == SDIS:
+        [outString, success] = sendI2CCommand(panelAddress, "WCH1:0\n")
+        dataIndex = 1
+    else:
+        dataIndex = 1
+
+    # if it's been a minute, 
+    now = datetime.now()
+    currentMinute = now.minute
+    if currentMinute != lastMinute:
+        secondsCounter = 0
+        dataIndex = 0
+        dischargeAcc = dischargeAcc + SDIS*AMPS
+        line = "" + currentMinute + "," + dischargeAcc + "," + accumulator[0]/quantity[0] + "," + accumulator[1]/quantity[1]
+        print(line)
+        with open(fileName, 'a') as the_file:
+            the_file.write(line + '\n')
+        [outString, success] = sendI2CCommand(panelAddress, "WCH1:1\n")
+
+    if failureCounter > 10: # if too many i2c communications exceptions, i2c bus is likely stuck and must be reset
+        print("resetting Atverters in order to clear the I2C bus...\n")
+        pin = 24
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+        line = "error," + " ," + " ," + " "
+        print(line)
+        with open(fileName, 'a') as the_file:
+            the_file.write(line + '\n')
+
+
+
