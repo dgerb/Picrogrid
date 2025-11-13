@@ -128,15 +128,14 @@ while True:
     [outString, success] = sendI2CCommand(panelAddress, "RVB:\n")
     [valueStr, successVal] = parseValueStr(outString)
     [valueInt, successInt] = tryValueInt(valueStr)
-    if success and successVal and successInt:
+    if success and successVal and successInt: # I2C successful response, response has parsable value, value is an int
         vbus = valueInt
-        print(str(lastSecond) + ", " + str(dataIndex) + ", " + str(vbus))
-        if vbus < UVCutoff: # if battery internal BMS cuts off and bus voltage droops
+        if vbus < UVCutoff: # exit if battery internal BMS cuts off and bus voltage droops
             sys.exit()
-        accumulator[dataIndex] = accumulator[dataIndex] + vbus
-        quantity[dataIndex] = quantity[dataIndex] + 1
+        accumulator[dataIndex] = accumulator[dataIndex] + vbus # add bus voltage reading to the proper accumulator
+        quantity[dataIndex] = quantity[dataIndex] + 1 # increment quantity of values in proper accumulator
     else:
-        failureCounter = failureCounter + 1
+        failureCounter = failureCounter + 1 # increment failure counter if anything went wrong in reading value
 
     # read the current in channel 1
     [outString, success] = sendI2CCommand(panelAddress, "RI1:\n")
@@ -147,11 +146,14 @@ while True:
     else:
         failureCounter = failureCounter + 1
 
-    # calculate discharge A*s and W*s
+    # print a diagnostic statement every second to make sure things are going smoothly
+    print(str(lastSecond) + ", " + str(dataIndex) + ", " + str(vbus)) + ", " + str(i1)
+
+    # calculate and accumulate discharge A*s and W*s
     dischargeIAcc = dischargeIAcc + i1/1000*1
     dischargeWAcc = dischargeWAcc + i1/1000*vbus/1000*1
 
-    # if it's been a minute, 
+    # if it's been a minute, log the data and reset Vbus accumulators
     if lastSecond >= 59:
         dataIndex = 1
         line = str(now.hour) + "," + str(now.minute) + "," + str(int(dischargeIAcc)) + "," + str(int(dischargeWAcc)) \
@@ -162,16 +164,10 @@ while True:
             the_file.write(line + '\n')
         accumulator = [0, 0]
         quantity = [0, 0]
-        # while failureCounter <= 10:
-        #     [outString, success] = sendI2CCommand(panelAddress, "WCH1:1\n")
-        #     if success:
-        #         break
-        #     failureCounter = failureCounter + 1
-        # if failureCounter > 0:
-        #     failureCounter = failureCounter - 1
 
-    if failureCounter > 10: # if too many i2c communications exceptions, i2c bus is likely stuck and must be reset
-        print("resetting Micropanels in order to clear the I2C bus...\n")
+    # if too many i2c communications exceptions, i2c bus is likely stuck and must be reset
+    if failureCounter > 10:
+        print("resetting PicroBoards in order to clear the I2C bus...\n")
         pin = 24
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, False)

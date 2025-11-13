@@ -12,52 +12,31 @@ sudo raspi-config nonint do_i2c 0
 
 # Set the Atmega328P Fuses
 # sometimes you'll need to set the fuses twice; need to experiment with this
-
-GPIO=24
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
+sudo avrdude -c linuxgpio24 -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
 sleep 2
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
-sleep 2
-GPIO=25
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
-sleep 2
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
+sudo avrdude -c linuxgpio24 -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
 sleep 2
 
-# Flash the Atmega328Ps
+# Flash the MicroPanel
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
-GPIO=24
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
-sleep 2
-GPIO=25
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/PiSupplyHExamples/CTMeasure/build/arduino.avr.uno/CTMeasure.ino.with_bootloader.hex:i
-sleep 2
 
-# # OLD: Set the Atmega328P Fuses
-# # sometimes you'll need to set the fuses twice; need to experiment with this
-# sudo avrdude -c linuxgpio24 -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
-# sleep 2
-# sudo avrdude -c linuxgpio24 -p atmega328p -v -U lfuse:w:0xFF:m -U hfuse:w:0xDE:m -U efuse:w:0xFD:m
-# sleep 2
-# # Flash the MicroPanel
-# # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
-# # MicroPanel: jumper 24
-# sudo avrdude -c linuxgpio24 -p atmega328p -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
-# sleep 2
+# MicroPanel: jumper 24
+sudo avrdude -c linuxgpio24 -p atmega328p -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
+sleep 2
 
 # Set up MariaDB database on Pi
-# Tested with mariadb-server version: 1:10.11.3-1+rpi1
+# Tested with mariadb-server version: 1:10.5.26-0+deb11u2
 cd ~
 export DIR="./Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard"
 export DB_USER="panelpi"
 export DB_PW="panelpipw"
 export DB_NAME="paneldb"
 # Install and initialize MariaDB (a type of MySQL database that works great on a Pi)
-sudo apt install mariadb-server=1:10.11.3-1+rpi1 -y
+sudo apt install mariadb-server -y
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
-pip3 install mysql-connector-python --break-system-packages
-pip3 install smbus2 --break-system-packages
+pip3 install mysql-connector-python
+pip3 install smbus2
 # Create a new database with the proper settings
 sudo mysql -u root -p -e "SET GLOBAL time_zone = '+00:00';"
 sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
@@ -65,7 +44,7 @@ sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
 sudo mysql -u root -p $DB_NAME < $DIR/SetupFiles/DBSetup.sql
 
 # Install Grafana on Pi
-# Tested with grafana version 12.2.1
+# Tested with grafana version 11.4.0
 export GRAFANA_ADMIN_PW="panelpipw"
 export GRAFANA_ADMIN_TOKEN=$(echo -n 'admin:'$GRAFANA_ADMIN_PW | base64)
 # Add the APT key used to authenticate packages and add the Grafana APT repository
@@ -74,8 +53,8 @@ wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt
 echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
 # Install Grafana and ButtonPanel plugin
 sudo apt-get update
-sudo apt-get install -y grafana=12.2.1
-sudo apt install -y jq=1.6-2.1+deb12u1
+sudo apt-get install -y grafana
+sudo apt install -y jq
 sudo grafana-cli plugins install speakyourcode-button-panel
 # Set Grafana such that other local machines can access the server hosted on port 3000
 sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
@@ -135,7 +114,7 @@ curl -X POST http://localhost:3000/api/admin/users \
       "role": "Viewer"
     }'
 # # Assign new user as a viewer
-# #   First get "customer" user UID
+# #   First get "custmer" user UID
 # #   Second get "PanelDashboard" dashboard UID
 # #   Third, use them both to assign
 # userresponse=$(curl -X GET "http://localhost:3000/api/users" \

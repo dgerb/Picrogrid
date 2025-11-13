@@ -43,11 +43,8 @@ import random
 # ch4 = True
 
 panelAddress = 0x08
-boardAddresses = [0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x05, 0x05]
-readCommands = ["RVB","RI1","RI2","RI3","RI4","RCH1","RCH2","RCH3","RCH4","RIA1","RIA7"]
-readVals = [0,0,0,0,0,0,0,0,0,0,0]
-rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,-1] # write above read result to another board address. skip if -1 
-rewriteCommands = ["","","","","","","","","","WIBIN",""] # command to rewrite above read result. skip if ""
+readCommands = ["RVB","RI1","RI2","RI3","RI4","RCH1","RCH2","RCH3","RCH4"]
+readVals = [0,0,0,0,0,0,0,0,0]
 I1IND = 1
 CH1IND = 5
 writeCommands = ["WCP1","WCP2","WCP3","WCP4"]
@@ -96,11 +93,11 @@ def sendI2CCommand(address, command):
 
 def readPicroBoard():
     global readVals
-    # global readCommands
-    # global boardAddresses
+    global readCommands
+    global panelAddress
     failureCounter = 0
     for n in range(len(readCommands)):
-        [outString, success] = sendI2CCommand(boardAddresses[n], readCommands[n]+":\n")
+        [outString, success] = sendI2CCommand(panelAddress, readCommands[n]+":\n")
         parsedOutStr = parseValueStr(outString)
         if success and represents_int(parsedOutStr):
             readVals[n] = int(parsedOutStr)
@@ -148,8 +145,8 @@ def insert_data():
     db_connection.close()
 
 def check_for_button():
-    # global readVals
-    # global CH1IND
+    global readVals
+    global CH1IND
     db_connection = connect_to_db()
     cursor = db_connection.cursor(dictionary=True)
     cursor.execute("""SELECT * FROM channelWrite""")

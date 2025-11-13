@@ -107,7 +107,7 @@ while True:
     with open(fileName, 'a') as the_file:
         the_file.write(line + '\n')
     if failureCounter > 10: # if too many i2c communications exceptions, i2c bus is likely stuck and must be reset
-        print("resetting Atverters in order to clear the I2C bus...\n")
+        print("resetting PicroBoards in order to clear the I2C bus...\n")
         pin = 24
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, False)

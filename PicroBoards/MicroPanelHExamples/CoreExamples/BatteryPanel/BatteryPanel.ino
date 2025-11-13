@@ -40,17 +40,27 @@ long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
 // we recommend setting VBATTMIN > VBATMINABS + RINTERNAL * IBATDISMAX
-const unsigned int VBATMIN = 11500*4; // min battery voltage in mV when drawing 0A
-const unsigned int VBATMINABS = 11000*4; // absolute min battery voltage in mV regardless of current
+const int SOCMIN = 10;
+const int SOCACTIVATE = 25;
+// const unsigned int VBATMIN = 12500*2; // min battery voltage in mV when drawing 0A
+const unsigned int VBATMINABS = 11000*2; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
-const unsigned int VACTIVATE = VBATMIN + 2000; // if undervoltage cutoff, needs this voltage to reactivate
+// const unsigned int VACTIVATE = VBATMIN + 500*2; // if undervoltage cutoff, needs this voltage to reactivate
+
+// battery curve lookup table
+const int LUTN = 9;
+// const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
+const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
+const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
 // Battery Converter global variables
 int iBatIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
-unsigned int vBatMin = 0; // min battery voltage at 0A
+int soc; // global variable to track the SOC, calculated by battery voltage
+// unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
-unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
+// unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
+unsigned int battVArr[LUTN];
 
 // // global variables for coulomb counting (relevant for SOC calculations)
 // long coulombCounter = 0; // coulomb counter (mA-sec)
@@ -85,10 +95,12 @@ void setup() {
   micropanel.startI2C(8, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
   // set battery raw parameters (raw 0-1023)
-  vBatMin = micropanel.mV2raw(VBATMIN);
+  // vBatMin = micropanel.mV2raw(VBATMIN);
   vBatMinAbs = micropanel.mV2raw(VBATMINABS);
-  vActivate = micropanel.mV2raw(VACTIVATE);
+  // vActivate = micropanel.mV2raw(VACTIVATE);
   micropanel.setRDroop(RINTERNAL);
+  for (int n = 0; n < LUTN; n++)
+    battVArr[n] = micropanel.mV2raw(BATTV[n]);
 
   // initialize inrush override for channels
   micropanel.setDefaultInrushOverride(200); // hold default channel protection for 200us to ride through inrush current
@@ -130,10 +142,13 @@ void controlUpdate(void)
   int iBat = iBatOut - iBatIn; // iBat represents the raw net current out of the battery
   
   // BMS code: turn off loads if battery SOC is too low
-  if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
+  int vBat0A = vBat + micropanel.getVDroopRaw(iBat); // adjusted battery voltage, accounting for voltage droop due to iBat
+  soc = interpolate(battVArr, BATTSOC, LUTN, vBat0A);
+  if (vBat < vBatMinAbs || soc < 10) { // battery voltage goes below absolute min, or SOC < 10%
     if (micropanel.isSomeChannelsActive())
       micropanel.shutdownChannels();
   }
+  // OLD: if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
 
   slowInterruptCounter++; // in this example, do some special stuff every 1 second (1000ms)
   if (slowInterruptCounter > 1000) {
@@ -157,58 +172,83 @@ void controlUpdate(void)
     }
 
     // prints channel state (as binary), VCC, VBus, I1, I2, I3, I4 to the serial console of attached computer
-    // Serial.print("State: ");
-    // Serial.print(micropanel.getCh1());
-    // Serial.print(micropanel.getCh2());
-    // Serial.print(micropanel.getCh3());
-    // Serial.print(micropanel.getCh4());
-    // Serial.print(", VCC=");
-    // Serial.print(micropanel.getVCC());
-    // Serial.print("mV, VBus=");
-    // Serial.print(micropanel.getVBus());
-    // Serial.print("mV, I1=");  
-    // Serial.print(micropanel.getI1());
-    // Serial.print("mA, I2=");  
-    // Serial.print(micropanel.getI2());
-    // Serial.print("mA, I3=");  
-    // Serial.print(micropanel.getI3());
-    // Serial.print("mA, I4=");  
-    // Serial.print(micropanel.getI4());
-    // Serial.print("mA, ITot=");
-    // Serial.print(micropanel.getITotal());
-    // Serial.print("mA, vbat:");
-    // Serial.print(vBat);
-    // Serial.print(", vdrp:");
-    // Serial.println(micropanel.getVDroopRaw(iBat));
+    Serial.print("State: ");
+    Serial.print(micropanel.getCh1());
+    Serial.print(micropanel.getCh2());
+    Serial.print(micropanel.getCh3());
+    Serial.print(micropanel.getCh4());
+    Serial.print(", VCC=");
+    Serial.print(micropanel.getVCC());
+    Serial.print("mV, VBus=");
+    // Serial.print(vBat0A));
+    Serial.print(micropanel.getVBus());
+    Serial.print("mV, soc=");
+    Serial.print(soc);
+    Serial.print("%, I1=");  
+    Serial.print(micropanel.getI1());
+    Serial.print("mA, I2=");  
+    Serial.print(micropanel.getI2());
+    Serial.print("mA, I3=");  
+    Serial.print(micropanel.getI3());
+    Serial.print("mA, I4=");  
+    Serial.print(micropanel.getI4());
+    Serial.print("mA, ITot=");
+    Serial.print(micropanel.getITotal());
+    Serial.print("mA, vbat:");
+    Serial.print(vBat);
+    Serial.print(", vdrp:");
+    Serial.println(micropanel.getVDroopRaw(iBat));
   }
 }
 
+// interpolation for finding battery SOC based on voltage using lookup table
+int interpolate(int x[], int y[], int n, int x_query)
+{
+    // Handle out-of-range queries by clamping
+    if (x_query <= x[0]) return y[0];
+    if (x_query >= x[n - 1]) return y[n - 1];
+    // Find the interval [x[i], x[i+1]] containing x_query
+    int i = 0;
+    while (i < n - 1 && x_query > x[i + 1])
+      ++i;
+    int x0 = x[i], x1 = x[i + 1];
+    int y0 = y[i], y1 = y[i + 1];
+    // Protect against zero-division if x values are identical
+    if (x1 == x0)
+      return y0;
+    // Linear interpolation formula
+    return y0 + (y1 - y0) * (x_query - x0) / (x1 - x0);
+}
+
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
-  if (strcmp(command, "RFN") == 0) {
-    readFileName(value, receiveProtocol);
+  if (strcmp(command, "RSOC") == 0) { // read SOC estimate (0-100)%
+    sprintf(micropanel.getTXBuffer(receiveProtocol), "WSOC:%d", soc);
+    micropanel.respondToMaster(receiveProtocol);
   } else if (strcmp(command, "WIBIN") == 0) { // record information from the Pi on battery input current
     writeBattInputCurrent(value, receiveProtocol);
+  } else if (strcmp(command, "RFN") == 0) { // report file name
+    readFileName(value, receiveProtocol);
   } else {
     // Write Channel Protected: checks if battery voltage is above activate threshold before enabling channel
     int temp = atoi(value);
-    int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
+    // int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
     if (strcmp(command, "WCP1") == 0) { // write the desired terminal 1 state
-      if (temp == 1 && micropanel.getCh1() == 0 && vBat < vActivate)
+      if (temp == 1 && micropanel.getCh1() == 0 && soc < SOCACTIVATE)
         temp = 0;
       micropanel.setCh1(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP1:=%d", micropanel.getCh1());
     } else if (strcmp(command, "WCP2") == 0) { // write the desired terminal 2 state
-      if (temp == 1 && micropanel.getCh2() == 0 && vBat < vActivate)
+      if (temp == 1 && micropanel.getCh2() == 0 && soc < SOCACTIVATE)
         temp = 0;
       micropanel.setCh2(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP2:=%d", micropanel.getCh2());
     } else if (strcmp(command, "WCP3") == 0) { // write the desired terminal 3 state
-      if (temp == 1 && micropanel.getCh3() == 0 && vBat < vActivate)
+      if (temp == 1 && micropanel.getCh3() == 0 && soc < SOCACTIVATE)
         temp = 0;
       micropanel.setCh3(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP3:=%d", micropanel.getCh3());
     } else if (strcmp(command, "WCP4") == 0) { // write the desired terminal 4 state
-      if (temp == 1 && micropanel.getCh4() == 0 && vBat < vActivate)
+      if (temp == 1 && micropanel.getCh4() == 0 && soc < SOCACTIVATE)
         temp = 0;
       micropanel.setCh4(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", micropanel.getCh4());
@@ -225,7 +265,7 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 
 // records the battery input current information from the Pi
 void writeBattInputCurrent(const char* valueStr, int receiveProtocol) {
-  int temp = atoi(value);
+  int temp = atoi(valueStr);
   iBatIn = micropanel.mA2raw(temp);
 }
 
