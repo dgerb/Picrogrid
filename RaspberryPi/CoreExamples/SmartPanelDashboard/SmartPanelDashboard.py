@@ -43,11 +43,11 @@ import random
 # ch4 = True
 
 panelAddress = 0x08
-boardAddresses = [0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x05, 0x05]
-readCommands = ["RVB","RI1","RI2","RI3","RI4","RCH1","RCH2","RCH3","RCH4","RIA1","RIA7"]
-readVals = [0,0,0,0,0,0,0,0,0,0,0]
-rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,-1] # write above read result to another board address. skip if -1 
-rewriteCommands = ["","","","","","","","","","WIBIN",""] # command to rewrite above read result. skip if ""
+boardAddresses = [0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x05, 0x05]
+readCommands = ["RVB","RSOC","RI1","RI2","RI3","RI4","RCH1","RCH2","RCH3","RCH4","RIA1","RIA7"]
+readVals = [0,0,0,0,0,0,0,0,0,0,0,0]
+rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,-1] # write above read result to another board address. skip if -1 
+rewriteCommands = ["","","","","","","","","","","WIBIN",""] # command to rewrite above read result. skip if ""
 I1IND = 1
 CH1IND = 5
 writeCommands = ["WCP1","WCP2","WCP3","WCP4"]
@@ -125,24 +125,27 @@ def connect_to_db():
         database="paneldb"
     )
 
-# Insert a new row with timestamp and vb,i1,i2,i3,i4,ch1,ch2,ch3,ch4
+# Insert a new row with timestamp and vb,soc,i1,i2,i3,i4,ch1,ch2,ch3,ch4,ia1,ia7
 def insert_data():
     db_connection = connect_to_db()
     cursor = db_connection.cursor()
 
-    newVals = ["{:.2f}".format(int(readVals[0])/1000.0), \
-        "{:.2f}".format(int(readVals[1])/1000.0), "{:.2f}".format(int(readVals[2])/1000.0), \
-        "{:.2f}".format(int(readVals[3])/1000.0), "{:.2f}".format(int(readVals[4])/1000.0), \
-        str(int(readVals[5])), str(int(readVals[6])), str(int(readVals[7])), str(int(readVals[8]))]
+    newVals = ["{:.2f}".format(int(readVals[0])/1000.0), str(int(readVals[1])), \ # RVB, RSOC
+        "{:.2f}".format(int(readVals[2])/1000.0), "{:.2f}".format(int(readVals[3])/1000.0), \ # RI1, RI2
+        "{:.2f}".format(int(readVals[4])/1000.0), "{:.2f}".format(int(readVals[5])/1000.0), \ # RI3, RI4
+        str(int(readVals[6])), str(int(readVals[7])), str(int(readVals[8])), str(int(readVals[9])), \ # RCH1-4
+        "{:.2f}".format(int(readVals[10])/1000.0), "{:.2f}".format(int(readVals[11])/1000.0)] # RIA1, RIA7
     # Insert the data into the table
     cursor.execute("""
-        INSERT INTO channelRead (vb, i1, i2, i3, i4, ch1, ch2, ch3, ch4)
+        INSERT INTO channelRead (vb, soc, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (newVals[0], newVals[1], newVals[2], newVals[3], newVals[4], \
-        newVals[5], newVals[6], newVals[7], newVals[8]))
+        newVals[5], newVals[6], newVals[7], newVals[8], newVals[9], \
+        newVals[10], newVals[11]))
     db_connection.commit()
-    print(f"{datetime.now()}, vb:{newVals[0]}, i1:{newVals[1]},i2:{newVals[2]},i3:{newVals[3]}"+\
-        f",i4:{newVals[4]}, ch1:{newVals[5]},ch2:{newVals[6]},ch3:{newVals[7]},ch4:{newVals[8]}")
+    print(f"{datetime.now()}, vb:{newVals[0]},soc:{newVals[1]},i1:{newVals[2]},i2:{newVals[3]},i3:{newVals[4]}"+\
+        f",i4:{newVals[5]},ch1:{newVals[6]},ch2:{newVals[7]},ch3:{newVals[8]},ch4:{newVals[9]}"+\
+        f",ia1:{newVals[10]},ia2:{newVals[11]}")
 
     cursor.close()
     db_connection.close()

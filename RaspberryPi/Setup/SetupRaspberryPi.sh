@@ -18,6 +18,8 @@ sudo apt install -y python3-pip
 # Enable SPI, I2C
 sudo raspi-config nonint do_spi 0 # command to enable SPI; for flashing the Atverter
 sudo raspi-config nonint do_i2c 0 # command to enable I2C; for I2C communication to Atverter
+# reduce I2C speed to 50kHz (from default 100kHz) to improve signal integrity and prevent hanging
+sudo sed -i '/^dtparam=i2c_arm=on/ s/$/,i2c_arm_baudrate=50000/' /boot/firmware/config.txt
 
 # Install AVRDude
 sudo apt install avrdude -y
