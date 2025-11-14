@@ -59,9 +59,13 @@ sudo systemctl enable mariadb
 pip3 install mysql-connector-python --break-system-packages
 pip3 install smbus2 --break-system-packages
 # Create a new database with the proper settings
+echo "setting time zone"
 sudo mysql -u root -p -e "SET GLOBAL time_zone = '+00:00';"
+echo "cleaning existing database $DB_NAME"
 sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
+echo "creating new database $DB_NAME"
 sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
+echo "configuring $DB_NAME from setup file"
 sudo mysql -u root -p $DB_NAME < $DIR/SetupFiles/DBSetup.sql
 
 # Install Grafana on Pi
@@ -87,6 +91,7 @@ sudo /bin/systemctl start grafana-server
 sleep 10 # must wait a bit after start
 sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
 sudo /bin/systemctl restart grafana-server
+
 # Add the MariaDB database as a data source for Grafana
 sleep 10 # must wait a bit after restart before can send http requests
 curl -X POST \
@@ -103,13 +108,15 @@ curl -X POST \
         "password": "panelpipw",
         "isDefault": true,
         "jsonData": {
-          "tlsSkipVerify": true
+          "tlsSkipVerify": false
         },
         "secureJsonData": {
             "password": "panelpipw"
         },
         "uid": "fe7briho1xcsgd"
       }'
+      # OLD: "tlsSkipVerify": true
+
 # Import dashboard info
 #   After exporting a dashboard, must format the .json file slightly to import from REST API
 #   {“dashboard”:{
@@ -123,51 +130,36 @@ curl -X POST \
   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
   -d @$DIR/SetupFiles/PanelDashboard.json \
   http://localhost:3000/api/dashboards/db
-# Create a new view-only user
+
+# Make it so that anonymous views can view the dashboard
 sleep 3 # must wait a bit after between curl requests
-curl -X POST http://localhost:3000/api/admin/users \
--H "Content-Type: application/json" \
--H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
--d '{
-      "name": "customer",
-      "login": "customer",
-      "password": "customer",
-      "role": "Viewer"
-    }'
-# # Assign new user as a viewer
-# #   First get "customer" user UID
-# #   Second get "PanelDashboard" dashboard UID
-# #   Third, use them both to assign
-# userresponse=$(curl -X GET "http://localhost:3000/api/users" \
-#   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN)
-# useruid=$(echo "$userresponse" | jq -r '.[1].uid')
-# dashboardresponse=$(curl -X GET "http://localhost:3000/api/search?query=PanelDashboard" \
-#   -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN)
-# dashboarduid=$(echo "$dashboardresponse" | jq -r '.[0].uid')
-# curl -X POST "http://localhost:3000/api/dashboards/uid/de7c0i5dtnsaod/permissions" \
-# -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
+sudo bash -c '
+sed -i "/^\[auth.anonymous\]/,/^\[/{ 
+    s/^[;#]*\s*enabled\s*=.*/enabled = true/;
+    s/^[;#]*\s*org_name\s*=.*/org_name = Main Org./;
+    s/^[;#]*\s*org_role\s*=.*/org_role = Viewer/;
+}" /etc/grafana/grafana.ini
+'
+sudo systemctl restart grafana-server
+
+# To force new user into kiosk mode, open this URL:
+# https://<grafana-host>/d/<dashboard_uid>?kiosk
+# For example:
+# http://nanogridpi.local:3000/d/display?kiosk
+
+
+
+
+
+# # OLD: Create a new view-only user
+# sleep 3 # must wait a bit after between curl requests
+# curl -X POST http://localhost:3000/api/admin/users \
 # -H "Content-Type: application/json" \
+# -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
 # -d '{
-#     "permission": 1,
-#     "userUid": "$useruid"
-#   }'
+#       "name": "customer",
+#       "login": "customer",
+#       "password": "customer",
+#       "role": "Viewer"
+#     }'
 
-curl -X PUT "https://localhost:3000/api/dashboards/uid/de7c0i5dtnsaod" \
-     -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
-     -H "Content-Type: application/json" \
-     -d '{
-          "dashboard": {
-            "uid": "de7c0i5dtnsaod"
-          },
-          "overwrite": true,
-          "meta": {
-            "starred": true
-          }
-        }'
-
-
-curl -X POST "https://localhost:3000/api/user/favorites" \
-  -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
-  -H "Content-Type: application/json" \
-  -d '{"dashboardUid": "de7c0i5dtnsaod"}'
-  

@@ -11,6 +11,7 @@ CREATE TABLE channelRead (
     id INT AUTO_INCREMENT PRIMARY KEY,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     vb FLOAT,
+    soc FLOAT,
     i1 FLOAT,
     i2 FLOAT,
     i3 FLOAT,
@@ -18,7 +19,12 @@ CREATE TABLE channelRead (
     ch1 BOOL,
     ch2 BOOL,
     ch3 BOOL,
-    ch4 BOOL
+    ch4 BOOL,
+    ia1 FLOAT,
+    ia7 FLOAT,
+    psol FLOAT,
+    pbatt FLOAT,
+    pload FLOAT
 );
 
 CREATE TABLE channelWrite (

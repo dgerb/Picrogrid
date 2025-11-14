@@ -22,7 +22,7 @@ sudo raspi-config nonint do_i2c 0 # command to enable I2C; for I2C communication
 sudo sed -i '/^dtparam=i2c_arm=on/ s/$/,i2c_arm_baudrate=50000/' /boot/firmware/config.txt
 
 # Install AVRDude
-sudo apt install avrdude -y
+sudo apt install -y avrdude=7.1+dfsg-3
 
 # Midpoint Test
 

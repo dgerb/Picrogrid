@@ -32,24 +32,13 @@ import RPi.GPIO as GPIO
 import mysql.connector
 import random
 
-# vb = 54
-# i1 = 1
-# i2 = 2
-# i3 = 3
-# i4 = 4
-# ch1 = True
-# ch2 = True
-# ch3 = True
-# ch4 = True
-
 panelAddress = 0x08
 boardAddresses = [0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x05, 0x05]
 readCommands = ["RVB","RSOC","RI1","RI2","RI3","RI4","RCH1","RCH2","RCH3","RCH4","RIA1","RIA7"]
 readVals = [0,0,0,0,0,0,0,0,0,0,0,0]
-rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,-1] # write above read result to another board address. skip if -1 
-rewriteCommands = ["","","","","","","","","","","WIBIN",""] # command to rewrite above read result. skip if ""
-I1IND = 1
-CH1IND = 5
+rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,0x08] # write above read result to another board address. skip if -1 
+rewriteCommands = ["","","","","","","","","","","WIEI","WIEO"] # command to rewrite above read result. skip if ""
+CH1IND = 6
 writeCommands = ["WCP1","WCP2","WCP3","WCP4"]
 
 def StringToBytes(val):
@@ -107,14 +96,22 @@ def readPicroBoard():
         else:
             failureCounter = failureCounter + 1
         sleep(0.2)
+        if success and rewriteCommands[n] != "":
+            [outString, success] = sendI2CCommand(rewriteAddresses[n], rewriteCommands[n]+":"+str(readVals[n])+"\n")
+            if not success:
+                failureCounter = failureCounter + 1
+            sleep(0.2)
     # If too many i2c communications exceptions, i2c bus is likely stuck and must be reset
     if failureCounter > len(readCommands)-2:
         print("resetting PicroBoards in order to clear the I2C bus...\n")
-        pin = 24
-        GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, False)
-        GPIO.output(pin, True)
-        GPIO.setup(pin, GPIO.IN)
+        for pin in [24, 25]:
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, False)
+            GPIO.output(pin, True)
+            GPIO.setup(pin, GPIO.IN)
+        sleep(1)
+        for n in range(0,4):
+            [outString, success] = sendI2CCommand(panelAddress, writeCommands[n]+":"+str(readVals[CH1IND+n])+"\n")
 
 # Connect to MariaDB
 def connect_to_db():
@@ -130,22 +127,34 @@ def insert_data():
     db_connection = connect_to_db()
     cursor = db_connection.cursor()
 
-    newVals = ["{:.2f}".format(int(readVals[0])/1000.0), str(int(readVals[1])), \ # RVB, RSOC
-        "{:.2f}".format(int(readVals[2])/1000.0), "{:.2f}".format(int(readVals[3])/1000.0), \ # RI1, RI2
-        "{:.2f}".format(int(readVals[4])/1000.0), "{:.2f}".format(int(readVals[5])/1000.0), \ # RI3, RI4
-        str(int(readVals[6])), str(int(readVals[7])), str(int(readVals[8])), str(int(readVals[9])), \ # RCH1-4
-        "{:.2f}".format(int(readVals[10])/1000.0), "{:.2f}".format(int(readVals[11])/1000.0)] # RIA1, RIA7
+    vb = int(readVals[0])/1000.0
+    soc = int(readVals[1])
+    i1 = int(readVals[2])/1000.0
+    i2 = int(readVals[3])/1000.0
+    i3 = int(readVals[4])/1000.0
+    i4 = int(readVals[5])/1000.0
+    ia1 = int(readVals[10])/1000.0
+    ia7 = int(readVals[11])/1000.0
+    psolar = vb*ia1
+    pload = -1*vb*(i1+i2+i3+i4+ia7)
+    pbattery = psolar + pload
+
+    newVals = ["{:.2f}".format(vb), str(soc), "{:.2f}".format(i1), "{:.2f}".format(i2),
+        "{:.2f}".format(i3), "{:.2f}".format(i4), 
+        str(int(readVals[6])), str(int(readVals[7])), str(int(readVals[8])), str(int(readVals[9])), # RCH1-4
+        "{:.2f}".format(ia1), "{:.2f}".format(ia7), # RIA1, RIA7
+        "{:.2f}".format(psolar), "{:.2f}".format(pbattery), "{:.2f}".format(pload)] # Psolar, Pbattery, Pload
     # Insert the data into the table
     cursor.execute("""
-        INSERT INTO channelRead (vb, soc, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO channelRead (vb, soc, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7, psol, pbatt, pload)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (newVals[0], newVals[1], newVals[2], newVals[3], newVals[4], \
         newVals[5], newVals[6], newVals[7], newVals[8], newVals[9], \
-        newVals[10], newVals[11]))
+        newVals[10], newVals[11], newVals[12], newVals[13], newVals[14]))
     db_connection.commit()
     print(f"{datetime.now()}, vb:{newVals[0]},soc:{newVals[1]},i1:{newVals[2]},i2:{newVals[3]},i3:{newVals[4]}"+\
         f",i4:{newVals[5]},ch1:{newVals[6]},ch2:{newVals[7]},ch3:{newVals[8]},ch4:{newVals[9]}"+\
-        f",ia1:{newVals[10]},ia2:{newVals[11]}")
+        f",ia1:{newVals[10]},ia7:{newVals[11]},psol:{newVals[12]},pbatt:{newVals[13]},pload:{newVals[14]}")
 
     cursor.close()
     db_connection.close()

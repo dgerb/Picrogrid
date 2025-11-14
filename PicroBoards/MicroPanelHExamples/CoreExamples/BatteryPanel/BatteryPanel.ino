@@ -55,7 +55,8 @@ const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 2640
 const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
 // Battery Converter global variables
-int iBatIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
+int iBatExtIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
+int iBatExtOut = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 int soc; // global variable to track the SOC, calculated by battery voltage
 // unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
@@ -139,7 +140,7 @@ void controlUpdate(void)
           ignore battery input current without ever having to worry about overdischarge
   */
   int iBatOut = micropanel.getRawITotal(); // current out of battery (positive)
-  int iBat = iBatOut - iBatIn; // iBat represents the raw net current out of the battery
+  int iBat = iBatOut + iBatExtOut - iBatExtIn; // iBat represents the raw net current out of the battery
   
   // BMS code: turn off loads if battery SOC is too low
   int vBat0A = vBat + micropanel.getVDroopRaw(iBat); // adjusted battery voltage, accounting for voltage droop due to iBat
@@ -224,8 +225,10 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
   if (strcmp(command, "RSOC") == 0) { // read SOC estimate (0-100)%
     sprintf(micropanel.getTXBuffer(receiveProtocol), "WSOC:%d", soc);
     micropanel.respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WIBIN") == 0) { // record information from the Pi on battery input current
+  } else if (strcmp(command, "WIEI") == 0) { // record information from the Pi on battery external input current
     writeBattInputCurrent(value, receiveProtocol);
+  } else if (strcmp(command, "WIEO") == 0) { // record information from the Pi on battery external output current
+    writeBattOutputCurrent(value, receiveProtocol);
   } else if (strcmp(command, "RFN") == 0) { // report file name
     readFileName(value, receiveProtocol);
   } else {
@@ -266,7 +269,13 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 // records the battery input current information from the Pi
 void writeBattInputCurrent(const char* valueStr, int receiveProtocol) {
   int temp = atoi(valueStr);
-  iBatIn = micropanel.mA2raw(temp);
+  iBatExtIn = micropanel.mA2raw(temp);
+}
+
+// records the battery input current information from the Pi
+void writeBattOutputCurrent(const char* valueStr, int receiveProtocol) {
+  int temp = atoi(valueStr);
+  iBatExtOut = micropanel.mA2raw(temp);
 }
 
   // --- Default Register Guide from Library ---
