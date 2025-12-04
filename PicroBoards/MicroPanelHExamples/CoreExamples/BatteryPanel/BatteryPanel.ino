@@ -30,6 +30,7 @@
   battery voltage variance of 0.2V out of 48V, which has an overall minimal effect on the SOC calculation's accuracy.
 
   created 20 August 2024
+  updated 11 November 2025
   by Daniel Gerber
 */
 
@@ -40,8 +41,7 @@ long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
 // we recommend setting VBATTMIN > VBATMINABS + RINTERNAL * IBATDISMAX
-const int SOCMIN = 10;
-const int SOCACTIVATE = 25;
+const int SOCMIN = 10; // Absolute minimum SOC after which all channels get turned off
 // const unsigned int VBATMIN = 12500*2; // min battery voltage in mV when drawing 0A
 const unsigned int VBATMINABS = 11000*2; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
@@ -145,7 +145,7 @@ void controlUpdate(void)
   // BMS code: turn off loads if battery SOC is too low
   int vBat0A = vBat + micropanel.getVDroopRaw(iBat); // adjusted battery voltage, accounting for voltage droop due to iBat
   soc = interpolate(battVArr, BATTSOC, LUTN, vBat0A);
-  if (vBat < vBatMinAbs || soc < 10) { // battery voltage goes below absolute min, or SOC < 10%
+  if (vBat < vBatMinAbs || soc < SOCMIN) { // battery voltage or SOC goes below absolute min threshold
     if (micropanel.isSomeChannelsActive())
       micropanel.shutdownChannels();
   }
@@ -231,27 +231,29 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
     writeBattOutputCurrent(value, receiveProtocol);
   } else if (strcmp(command, "RFN") == 0) { // report file name
     readFileName(value, receiveProtocol);
+  } else if (strcmp(command, "RCHA") == 0) { // report "1" if any channel is active, "0" if none active
+    readIsChannelActive(value, receiveProtocol);
   } else {
     // Write Channel Protected: checks if battery voltage is above activate threshold before enabling channel
     int temp = atoi(value);
     // int vBat = micropanel.getRawVBus(); // battery port voltage, aka. bus voltage
     if (strcmp(command, "WCP1") == 0) { // write the desired terminal 1 state
-      if (temp == 1 && micropanel.getCh1() == 0 && soc < SOCACTIVATE)
+      if (temp == 1 && micropanel.getCh1() == 0 && soc < SOCMIN)
         temp = 0;
       micropanel.setCh1(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP1:=%d", micropanel.getCh1());
     } else if (strcmp(command, "WCP2") == 0) { // write the desired terminal 2 state
-      if (temp == 1 && micropanel.getCh2() == 0 && soc < SOCACTIVATE)
+      if (temp == 1 && micropanel.getCh2() == 0 && soc < SOCMIN)
         temp = 0;
       micropanel.setCh2(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP2:=%d", micropanel.getCh2());
     } else if (strcmp(command, "WCP3") == 0) { // write the desired terminal 3 state
-      if (temp == 1 && micropanel.getCh3() == 0 && soc < SOCACTIVATE)
+      if (temp == 1 && micropanel.getCh3() == 0 && soc < SOCMIN)
         temp = 0;
       micropanel.setCh3(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP3:=%d", micropanel.getCh3());
     } else if (strcmp(command, "WCP4") == 0) { // write the desired terminal 4 state
-      if (temp == 1 && micropanel.getCh4() == 0 && soc < SOCACTIVATE)
+      if (temp == 1 && micropanel.getCh4() == 0 && soc < SOCMIN)
         temp = 0;
       micropanel.setCh4(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", micropanel.getCh4());
@@ -276,6 +278,13 @@ void writeBattInputCurrent(const char* valueStr, int receiveProtocol) {
 void writeBattOutputCurrent(const char* valueStr, int receiveProtocol) {
   int temp = atoi(valueStr);
   iBatExtOut = micropanel.mA2raw(temp);
+}
+
+// report "1" if any channel is active, "0" if none active
+void readIsChannelActive(const char* valueStr, int receiveProtocol) {
+  int isChannelActive = micropanel.getCh1() || micropanel.getCh2() || micropanel.getCh3() || micropanel.getCh4();
+  sprintf(micropanel.getTXBuffer(receiveProtocol), "WCHA:%d", isChannelActive);
+  micropanel.respondToMaster(receiveProtocol);
 }
 
   // --- Default Register Guide from Library ---

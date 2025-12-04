@@ -40,6 +40,9 @@ rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,0x08] # write above read 
 rewriteCommands = ["","","","","","","","","","","WIEI","WIEO"] # command to rewrite above read result. skip if ""
 CH1IND = 6
 writeCommands = ["WCP1","WCP2","WCP3","WCP4"]
+soc = 0 # battery state of charge global variable
+anyChannelActive = 0 # global variable describing if any of the channels are active (1) or none (0)
+imppt = 0 # global variable for MPPT current into battery
 
 def StringToBytes(val):
     retVal = []
@@ -66,6 +69,15 @@ def represents_int(s):
         return False
     else:
         return True
+
+def resetI2CBus():
+    print("resetting PicroBoards in order to clear the I2C bus...\n")
+    for pin in [24, 25]:
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+        GPIO.output(pin, True)
+        GPIO.setup(pin, GPIO.IN)
+    sleep(1)
 
 def sendI2CCommand(address, command):
     try:
@@ -103,13 +115,7 @@ def readPicroBoard():
             sleep(0.2)
     # If too many i2c communications exceptions, i2c bus is likely stuck and must be reset
     if failureCounter > len(readCommands)-2:
-        print("resetting PicroBoards in order to clear the I2C bus...\n")
-        for pin in [24, 25]:
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, False)
-            GPIO.output(pin, True)
-            GPIO.setup(pin, GPIO.IN)
-        sleep(1)
+        resetI2CBus()
         for n in range(0,4):
             [outString, success] = sendI2CCommand(panelAddress, writeCommands[n]+":"+str(readVals[CH1IND+n])+"\n")
 
@@ -133,7 +139,13 @@ def insert_data():
     i2 = int(readVals[3])/1000.0
     i3 = int(readVals[4])/1000.0
     i4 = int(readVals[5])/1000.0
+    ch1 = int(readVals[6])
+    ch2 = int(readVals[7])
+    ch3 = int(readVals[8])
+    ch4 = int(readVals[9])
+    anyChannelActive = ch1 or ch2 or ch3 or ch4
     ia1 = int(readVals[10])/1000.0
+    imppt = ia1
     ia7 = int(readVals[11])/1000.0
     psolar = vb*ia1
     pload = -1*vb*(i1+i2+i3+i4+ia7)
@@ -141,7 +153,7 @@ def insert_data():
 
     newVals = ["{:.2f}".format(vb), str(soc), "{:.2f}".format(i1), "{:.2f}".format(i2),
         "{:.2f}".format(i3), "{:.2f}".format(i4), 
-        str(int(readVals[6])), str(int(readVals[7])), str(int(readVals[8])), str(int(readVals[9])), # RCH1-4
+        str(ch1), str(ch2), str(ch3), str(ch4), # RCH1-4
         "{:.2f}".format(ia1), "{:.2f}".format(ia7), # RIA1, RIA7
         "{:.2f}".format(psolar), "{:.2f}".format(pbattery), "{:.2f}".format(pload)] # Psolar, Pbattery, Pload
     # Insert the data into the table
@@ -180,7 +192,24 @@ def check_for_button():
     db_connection.close()
     return (len(rows) > 0)
 
-
+# Check SOC, and turn off channels if SOC < 25%
+#   or if channels are off and SOC > 30%, turn them all on
+def checkSOCShutoff():
+    success = False
+    while not success:
+        if anyChannelActive and soc < 23: # turn off all channels
+            [outString, success] = sendI2CCommand(panelAddress, "WCP1:0\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP2:0\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP3:0\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP4:0\n")
+        elif not anyChannelActive and soc > 30: # turn on all channels
+            [outString, success] = sendI2CCommand(panelAddress, "WCP1:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP2:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP3:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCP4:1\n")
+        if not success:
+            resetI2CBus()
+            sleep(1)
 
 if __name__ == "__main__":
     print("Remember to make sure I2C is enabled in raspi-config.")
@@ -200,3 +229,7 @@ if __name__ == "__main__":
         insert_data()
         sleep(0.2)
 
+        # Check SOC, and turn off channels if SOC < 25% and no MPPT current
+        #   or if channels are off and (SOC > 25% or MPPT current detected), turn them all on
+        checkSOCShutoff()
+        sleep(0.2)
