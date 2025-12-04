@@ -207,6 +207,8 @@ def checkSOCShutoff():
             [outString, success] = sendI2CCommand(panelAddress, "WCP2:1\n")
             [outString, success] = sendI2CCommand(panelAddress, "WCP3:1\n")
             [outString, success] = sendI2CCommand(panelAddress, "WCP4:1\n")
+        else:
+            break
         if not success:
             resetI2CBus()
             sleep(1)
@@ -231,5 +233,5 @@ if __name__ == "__main__":
 
         # Check SOC, and turn off channels if SOC < 25% and no MPPT current
         #   or if channels are off and (SOC > 25% or MPPT current detected), turn them all on
-        checkSOCShutoff()
+        # checkSOCShutoff()
         sleep(0.2)

@@ -173,32 +173,32 @@ void controlUpdate(void)
     }
 
     // prints channel state (as binary), VCC, VBus, I1, I2, I3, I4 to the serial console of attached computer
-    Serial.print("State: ");
-    Serial.print(micropanel.getCh1());
-    Serial.print(micropanel.getCh2());
-    Serial.print(micropanel.getCh3());
-    Serial.print(micropanel.getCh4());
-    Serial.print(", VCC=");
-    Serial.print(micropanel.getVCC());
-    Serial.print("mV, VBus=");
-    // Serial.print(vBat0A));
-    Serial.print(micropanel.getVBus());
-    Serial.print("mV, soc=");
-    Serial.print(soc);
-    Serial.print("%, I1=");  
-    Serial.print(micropanel.getI1());
-    Serial.print("mA, I2=");  
-    Serial.print(micropanel.getI2());
-    Serial.print("mA, I3=");  
-    Serial.print(micropanel.getI3());
-    Serial.print("mA, I4=");  
-    Serial.print(micropanel.getI4());
-    Serial.print("mA, ITot=");
-    Serial.print(micropanel.getITotal());
-    Serial.print("mA, vbat:");
-    Serial.print(vBat);
-    Serial.print(", vdrp:");
-    Serial.println(micropanel.getVDroopRaw(iBat));
+    // Serial.print("State: ");
+    // Serial.print(micropanel.getCh1());
+    // Serial.print(micropanel.getCh2());
+    // Serial.print(micropanel.getCh3());
+    // Serial.print(micropanel.getCh4());
+    // Serial.print(", VCC=");
+    // Serial.print(micropanel.getVCC());
+    // Serial.print("mV, VBus=");
+    // // Serial.print(vBat0A));
+    // Serial.print(micropanel.getVBus());
+    // Serial.print("mV, soc=");
+    // Serial.print(soc);
+    // Serial.print("%, I1=");  
+    // Serial.print(micropanel.getI1());
+    // Serial.print("mA, I2=");  
+    // Serial.print(micropanel.getI2());
+    // Serial.print("mA, I3=");  
+    // Serial.print(micropanel.getI3());
+    // Serial.print("mA, I4=");  
+    // Serial.print(micropanel.getI4());
+    // Serial.print("mA, ITot=");
+    // Serial.print(micropanel.getITotal());
+    // Serial.print("mA, vbat:");
+    // Serial.print(vBat);
+    // Serial.print(", vdrp:");
+    // Serial.println(micropanel.getVDroopRaw(iBat));
   }
 }
 
