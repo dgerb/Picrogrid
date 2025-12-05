@@ -21,5 +21,5 @@ sleep 2
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
 
 # MicroPanel: jumper 24
-sudo avrdude -c linuxgpio24 -p atmega328p -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
+sudo avrdude -c linuxgpio24 -p atmega328p -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
 sleep 2

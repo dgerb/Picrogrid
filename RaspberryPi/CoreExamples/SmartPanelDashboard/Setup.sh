@@ -27,10 +27,10 @@ sleep 2
 # Flash the Atmega328Ps
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
 GPIO=24
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
+sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
 sleep 2
 GPIO=25
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/PiSupplyHExamples/CTMeasure/build/arduino.avr.uno/CTMeasure.ino.with_bootloader.hex:i
+sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/PiSupplyHExamples/CTMeasure/build/arduino.avr.uno/CTMeasure.ino.with_bootloader.hex:i
 sleep 2
 
 # # OLD: Set the Atmega328P Fuses
@@ -53,7 +53,8 @@ export DB_USER="panelpi"
 export DB_PW="panelpipw"
 export DB_NAME="paneldb"
 # Install and initialize MariaDB (a type of MySQL database that works great on a Pi)
-sudo apt install mariadb-server=1:10.11.3-1+rpi1 -y
+# last tested with version 1:10.11.3-1+rpi1
+sudo apt install mariadb-server -y
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
 pip3 install mysql-connector-python --break-system-packages
@@ -146,20 +147,4 @@ sudo systemctl restart grafana-server
 # https://<grafana-host>/d/<dashboard_uid>?kiosk
 # For example:
 # http://nanogridpi.local:3000/d/display?kiosk
-
-
-
-
-
-# # OLD: Create a new view-only user
-# sleep 3 # must wait a bit after between curl requests
-# curl -X POST http://localhost:3000/api/admin/users \
-# -H "Content-Type: application/json" \
-# -H "Authorization: Basic "$GRAFANA_ADMIN_TOKEN \
-# -d '{
-#       "name": "customer",
-#       "login": "customer",
-#       "password": "customer",
-#       "role": "Viewer"
-#     }'
 

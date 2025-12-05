@@ -130,6 +130,8 @@ def connect_to_db():
 
 # Insert a new row with timestamp and vb,soc,i1,i2,i3,i4,ch1,ch2,ch3,ch4,ia1,ia7
 def insert_data():
+    global soc
+    global anyChannelActive
     db_connection = connect_to_db()
     cursor = db_connection.cursor()
 
@@ -198,15 +200,25 @@ def checkSOCShutoff():
     success = False
     while not success:
         if anyChannelActive and soc < 23: # turn off all channels
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP1:0\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP2:0\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP3:0\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP4:0\n")
+            sleep(0.2)
         elif not anyChannelActive and soc > 30: # turn on all channels
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP1:1\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP2:1\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP3:1\n")
+            sleep(0.2)
             [outString, success] = sendI2CCommand(panelAddress, "WCP4:1\n")
+            sleep(0.2)
         else:
             break
         if not success:
@@ -233,5 +245,5 @@ if __name__ == "__main__":
 
         # Check SOC, and turn off channels if SOC < 25% and no MPPT current
         #   or if channels are off and (SOC > 25% or MPPT current detected), turn them all on
-        # checkSOCShutoff()
+        checkSOCShutoff()
         sleep(0.2)

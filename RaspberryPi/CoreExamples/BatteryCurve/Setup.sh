@@ -22,7 +22,7 @@ sleep 2
 
 # Flash the Atmega328Ps
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
-sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/BasicExamples/3_SmartPanel/build/arduino.avr.uno/3_SmartPanel.ino.with_bootloader.hex:i
+sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/BasicExamples/3_SmartPanel/build/arduino.avr.uno/3_SmartPanel.ino.with_bootloader.hex:i
 sleep 2
 
 
