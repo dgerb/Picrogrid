@@ -75,9 +75,11 @@ def resetI2CBus():
     for pin in [24, 25]:
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, False)
+    sleep(.5)
+    for pin in [24, 25]:
         GPIO.output(pin, True)
         GPIO.setup(pin, GPIO.IN)
-    sleep(1)
+    sleep(.5)
 
 def sendI2CCommand(address, command):
     try:
@@ -211,13 +213,13 @@ def checkSOCShutoff():
             sleep(0.2)
         elif not anyChannelActive and soc > 30: # turn on all channels
             sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP1:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCH1:1\n")
             sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP2:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCH4:1\n")
             sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP3:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCH3:1\n")
             sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP4:1\n")
+            [outString, success] = sendI2CCommand(panelAddress, "WCH2:1\n")
             sleep(0.2)
         else:
             break

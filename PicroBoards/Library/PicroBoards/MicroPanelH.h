@@ -77,6 +77,7 @@ class MicroPanelH : public PicroBoard
     void setCh2(int state); // sets the state of Channel 2
     void setCh3(int state); // sets the state of Channel 3
     void setCh4(int state); // sets the state of Channel 4
+    void setChannel(int chNumber, int state); // set channel
     void setChannel(int chPin, int state, bool hardwareShutoffEnabled, int holdProtectMicroseconds); // set channel
     void setDefaultInrushOverride(int holdProtectMicroseconds); // set all default switch hold delays
     void setDefaultInrushOverride(int channel1234, int holdProtectMicroseconds); // set switch hold delay

@@ -22,6 +22,7 @@ const int LED1_PIN = 4; // PD4
 // pins for channel signals
 const int CHPI_PIN = 5; // PD5
 const int CH5V_PIN = 6; // PD6
+const int CHGPIO_PIN = 8; // PB0
 const int CH12V_PIN = 7; // PD7
 
 // pins for voltage sensing
@@ -37,8 +38,6 @@ const int D3 = 3; // PD3
 const int D3_PIN = 3; // PD3
 const int D9 = 9; // PB1
 const int D9_PIN = 9; // PB1
-const int D8 = 8; // PB0
-const int D8_PIN = 8; // PB0
 
 // sensor index enumerator for convenience
 enum SensorIndex 
@@ -83,11 +82,14 @@ class PiSupplyH : public PicroBoard
   // channel state set and get
     void setChPi(int state); // sets the state of the Pi power channel (5V) to on (HIGH) or off (LOW)
     void setCh5V(int state); // sets the state of 5V output power channel to on (HIGH) or off (LOW)
+    void setChGPIO(int state); // sets the state of GPIO power channel (5V) to on (HIGH) or off (LOW)
     void setCh12V(int state); // sets the state of 12V output power channel to on (HIGH) or off (LOW)
     void setChannel(int chPin, int state); // set channel
-    void shutdownChannels(); // turns off all channels immediately
+    void shutdownOutputChannels(); // immediately triggers the all channels except the Pi to shut down
+    void shutdownAllChannels(); // turns off all channels immediately
     int getChPi(); // gets the state of Pi power channel (5V)
     int getCh5V(); // gets the state of 5V output power channel
+    int getChGPIO(); // gets the state of GPIO output power channel
     int getCh12V(); // gets the state of 12V output power channel
   // raw sensor values
     void updateVCC(); // updates stored VCC value based on an average
@@ -98,10 +100,12 @@ class PiSupplyH : public PicroBoard
     int readVCC(); // returns the sampled VCC voltage in milliVolts
     int getRawV48(); // gets 48V input bus voltage ADC value (0 to 1023)
     int getRawV12(); // gets 12V bus voltage value (0 to 1023)
+    int getRawAnalog(int analogInd); // gets analog GPIO pin voltage (0 to 1023)
   // fully-formatted sensors
     int getVCC(); // returns the averaged VCC value
     unsigned int getV48(); // returns the averaged 48V input bus voltage mV value
     int getV12(); // returns the averaged 12V input bus voltage mV value
+    int getAnalog(int analogInd); // returns the averaged 0-5000mV value of a analog GPIO pin (0, 1, 6, 7)
   // diagnostics
     void setLED(int led, int state); // sets an LED to HIGH or LOW
     void setLED1(int state); // sets LED1 (yellow) to HIGH or LOW

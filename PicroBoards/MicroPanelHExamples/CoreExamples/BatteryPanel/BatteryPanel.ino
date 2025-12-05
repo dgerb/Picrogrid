@@ -108,7 +108,7 @@ void setup() {
   micropanel.setDefaultInrushOverride(2, 1000); // channel 2 (fans and electronics) needs 1000us inrush ride through
   micropanel.setDefaultInrushOverride(3, 1000); // channel 3 (fans and electronics) needs 1000us inrush ride through
   micropanel.disableHardwareShutoff(4); // Expert Only: for channel 4, we disable the hardware current shutoff
-
+  
   // set channel 4 current cumulative average limit
   iCh4Limit = micropanel.mA2raw(ICH4LIMIT);
 
@@ -257,6 +257,14 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
         temp = 0;
       micropanel.setCh4(temp);
       sprintf(micropanel.getTXBuffer(receiveProtocol), "WCP4:=%d", micropanel.getCh4());
+    } else if (strcmp(command, "WCPA") == 0) { // write the desired state for all terminals
+      if (temp == 1 && soc < SOCMIN && (micropanel.getCh1() == 0 || micropanel.getCh2() == 0 || micropanel.getCh3() == 0 || micropanel.getCh4() == 0))
+        temp = 0;
+      micropanel.setCh1(temp);
+      micropanel.setCh2(temp);
+      micropanel.setCh3(temp);
+      micropanel.setCh4(temp);
+      sprintf(micropanel.getTXBuffer(receiveProtocol), "WCPA:=%d", micropanel.getCh1());
     }
     micropanel.respondToMaster(receiveProtocol);
   }

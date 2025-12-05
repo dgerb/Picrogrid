@@ -12,7 +12,7 @@ PiSupplyH::PiSupplyH() {
 // default initialization routine
 void PiSupplyH::initialize() {
   setupPinMode();
-  shutdownChannels();
+  shutdownOutputChannels();
   initializeSensors();
 }
 
@@ -20,9 +20,10 @@ void PiSupplyH::initialize() {
 void PiSupplyH::setupPinMode() {
   pinMode(LED2_PIN, OUTPUT);
   pinMode(LED1_PIN, OUTPUT);
-  pinMode(CHPI_PIN, INPUT);
-  pinMode(CH5V_PIN, INPUT);
-  pinMode(CH12V_PIN, INPUT);
+  pinMode(CHPI_PIN, OUTPUT);
+  pinMode(CH5V_PIN, OUTPUT);
+  pinMode(CHGPIO_PIN, OUTPUT);
+  pinMode(CH12V_PIN, OUTPUT);
   pinMode(V48_PIN, INPUT);
   pinMode(V12_PIN, INPUT);
   pinMode(A0, INPUT);
@@ -30,7 +31,6 @@ void PiSupplyH::setupPinMode() {
   pinMode(A6, INPUT);
   pinMode(A7, INPUT);
   pinMode(D3, INPUT);
-  pinMode(D8, INPUT);
   pinMode(D9, INPUT);
 }
 
@@ -58,17 +58,22 @@ void PiSupplyH::initializeInterruptTimer(long periodus, void (*interruptFunction
 
 // sets the state of the Pi power channel (5V) to on (HIGH) or off (LOW)
 void PiSupplyH::setChPi(int state) {
-  setChannel(CHPI_PIN, !state);
+  digitalWrite(CHPI_PIN, !state);
 }
 
 // sets the state of 5V output power channel to on (HIGH) or off (LOW)
 void PiSupplyH::setCh5V(int state) {
-  setChannel(CH5V_PIN, !state);
+  digitalWrite(CH5V_PIN, !state);
+}
+
+// sets the state of GPIO power channel (5V) to on (HIGH) or off (LOW)
+void PiSupplyH::setChGPIO(int state) {
+  digitalWrite(CHGPIO_PIN, !state);
 }
 
 // sets the state of 12V output power channel to on (HIGH) or off (LOW)
 void PiSupplyH::setCh12V(int state) {
-  setChannel(CH12V_PIN, state);
+  digitalWrite(CH12V_PIN, state);
 }
 
 int PiSupplyH::getChPi() {
@@ -77,6 +82,10 @@ int PiSupplyH::getChPi() {
 
 int PiSupplyH::getCh5V() {
   return !digitalRead(CH5V_PIN);
+}
+
+int PiSupplyH::getChGPIO() {
+  return !digitalRead(CHGPIO_PIN);
 }
 
 int PiSupplyH::getCh12V() {
@@ -92,9 +101,9 @@ void PiSupplyH::updateVCC() {
   for (int n = 0; n < avgLength; n++)
     accumulator = accumulator + readVCC();
   _vcc = accumulator/avgLength;
-  if (_vcc < 4950) { // readVCC() might measure ~4500 mV if connected via USB
-    _vcc = 5000; // to avoid incorrect USB VCC, set to approximate supply output voltage 
-  }
+  // if (_vcc < 4950) { // readVCC() might measure ~4500 mV if connected via USB
+  //   _vcc = 5000; // to avoid incorrect USB VCC, set to approximate supply output voltage 
+  // }
 }
 
 // updates voltage sensor averages
@@ -125,10 +134,15 @@ void PiSupplyH::updateASensor(int sensor) {
 
 // updates all analog GPIO sensor averages
 void PiSupplyH::updateASensors() {
-  upsateASensor(0);
+  updateASensor(0);
   updateASensor(1);
   updateASensor(6);
   updateASensor(7);
+}
+
+void PiSupplyH::updateSensors() {
+  updateVSensors();
+  updateASensors();
 }
 
 void PiSupplyH::updateSensorRaw(int index, int sample) {
@@ -180,6 +194,24 @@ int PiSupplyH::getRawV12() {
   return _sensorAverages[V12_INDEX];
 }
 
+// Analog GPIO pin voltage (0 to 1023)
+int PiSupplyH::getRawAnalog(int analogInd) {
+  switch(analogInd) {
+    case 0:
+      return _sensorAverages[A0_INDEX];
+      break;
+    case 1:
+      return _sensorAverages[A1_INDEX];
+      break;
+    case 6:
+      return _sensorAverages[A6_INDEX];
+      break;
+    case 7:
+      return _sensorAverages[A7_INDEX];
+      break;
+  }
+}
+
 // Fully-Formatted Sensor Accessor Functions --------------------------------------
 
 // returns the averaged VCC value
@@ -195,6 +227,11 @@ unsigned int PiSupplyH::getV48() {
 // returns the averaged 12V bus voltage value in mA
 int PiSupplyH::getV12() {
   return raw2mV(getRawV12());
+}
+
+// returns the averaged 0-5000mV value of a analog GPIO pin (0, 1, 6, 7)
+int PiSupplyH::getAnalog(int analogInd) {
+  return (long)getRawAnalog(analogInd)*getVCC()/1024;
 }
 
 // Conversion Utility Functions ---------------------------------------
@@ -256,7 +293,8 @@ int PiSupplyH::readVCC() {
  
   long result = (high<<8) | low;
  
-  result = 1125300L / result; // Calculate Vcc (in mV); 1125300 = 1.1*1023*1000
+  result = 1126400L / result; // https://github.com/openenergymonitor/EmonLib/blob/master/EmonLib.h
+  // result = 1125300L / result; // Calculate Vcc (in mV); 1125300 = 1.1*1023*1000
   return (int)result; // Vcc in millivolts
 }
 
@@ -279,16 +317,19 @@ void PiSupplyH::setLED2(int state) {
 
 // Safety -----------------------------------------------------------------
 
-// immediately triggers the all channels to shut down
-void PiSupplyH::shutdownChannels() {
-  digitalWrite(CH12V_PIN, LOW);
-  digitalWrite(CH5V_PIN, LOW);
-  digitalWrite(CHPI_PIN, LOW);
+// immediately triggers the all channels except the Pi to shut down
+void PiSupplyH::shutdownOutputChannels() {
+  setCh5V(LOW);
+  setChGPIO(LOW);
+  setCh12V(LOW);
 }
 
-// checks if one or more channels are active
-bool PiSupplyH::isSomeChannelsActive() {
-  return getChPi() || getCh5V() || getCh12V();
+// immediately triggers all channels to shut down
+void PiSupplyH::shutdownAllChannels() {
+  setChPi(LOW);
+  setCh5V(LOW);
+  setChGPIO(LOW);
+  setCh12V(LOW);
 }
 
 // Communications ------------------------------------------------------------
@@ -301,34 +342,42 @@ void PiSupplyH::interpretRXCommand(char* command, char* value, int receiveProtoc
     sprintf(getTXBuffer(receiveProtocol), "WV48:%u", getV48());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RV12") == 0) { // read 12V bus voltage
-    sprintf(getTXBuffer(receiveProtocol), "WI12:%d", getV12());
+    sprintf(getTXBuffer(receiveProtocol), "WV12:%d", getV12());
     respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RVCC") == 0) { // read the ~5V VCC bus voltage
     sprintf(getTXBuffer(receiveProtocol), "WVCC:%d", getVCC());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RCPI") == 0) { // read state of the Pi output channel
+  } else if (strcmp(command, "RCPI") == 0) { // read state of the Pi power channel
     sprintf(getTXBuffer(receiveProtocol), "WCPI:%d", getChPi());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RC5V") == 0) { // read state of the 5V output channel
+  } else if (strcmp(command, "RC5V") == 0) { // read state of the 5V output power channel
     sprintf(getTXBuffer(receiveProtocol), "WC5V:%d", getCh5V());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "RC12V") == 0) { // read state of the 12V output channel
+  } else if (strcmp(command, "RCGP") == 0) { // read state of the GPIO power channel
+    sprintf(getTXBuffer(receiveProtocol), "WCGP:%d", getChGPIO());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "RC12V") == 0) { // read state of the 12V output power channel
     sprintf(getTXBuffer(receiveProtocol), "WC12V:%d", getCh12V());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WCPI") == 0) { // write the desired Pi output channel state
+  } else if (strcmp(command, "WCPI") == 0) { // write the desired Pi power channel state
     int temp = atoi(value);
-    setCh1(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WCPI:=%d", getCh1());
+    setChPi(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCPI:=%d", getChPi());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WC5V") == 0) { // write the desired 5V output channel state
+  } else if (strcmp(command, "WC5V") == 0) { // write the desired 5V output power channel state
     int temp = atoi(value);
-    setCh2(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WC5V:=%d", getCh2());
+    setCh5V(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WC5V:=%d", getCh5V());
     respondToMaster(receiveProtocol);
-  } else if (strcmp(command, "WC12V") == 0) { // write the desired 12V output channel state
+  } else if (strcmp(command, "WCGP") == 0) { // write the desired GPIO power channel state
     int temp = atoi(value);
-    setCh3(temp);
-    sprintf(getTXBuffer(receiveProtocol), "WC12V:=%d", getCh3());
+    setChGPIO(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WCGP:=%d", getChGPIO());
+    respondToMaster(receiveProtocol);
+  } else if (strcmp(command, "WC12V") == 0) { // write the desired 12V output power channel state
+    int temp = atoi(value);
+    setCh12V(temp);
+    sprintf(getTXBuffer(receiveProtocol), "WC12V:=%d", getCh12V());
     respondToMaster(receiveProtocol);
   } else { // send command data to the callback listener functions, registered from primary .ino file
     for (int n = 0; n < _commandCallbacksEnd; n++) {

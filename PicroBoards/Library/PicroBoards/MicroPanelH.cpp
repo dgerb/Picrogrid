@@ -60,22 +60,46 @@ void MicroPanelH::initializeInterruptTimer(long periodus, void (*interruptFuncti
 
 // set Channel 1 to a state HIGH or LOW
 void MicroPanelH::setCh1(int state) {
-  setChannel(CH1_PIN, state, _hardwareShutoffEnabled[0], _holdProtectMicros[0]);
+  setChannel(1, state);
+  // setChannel(CH1_PIN, state, _hardwareShutoffEnabled[0], _holdProtectMicros[0]);
 }
 
 // set Channel 2 to a state HIGH or LOW
 void MicroPanelH::setCh2(int state) {
-  setChannel(CH2_PIN, state, _hardwareShutoffEnabled[1], _holdProtectMicros[1]);
+  setChannel(2, state);
+  // setChannel(CH2_PIN, state, _hardwareShutoffEnabled[1], _holdProtectMicros[1]);
 }
 
 // set Channel 3 to a state HIGH or LOW
 void MicroPanelH::setCh3(int state) {
-  setChannel(CH3_PIN, state, _hardwareShutoffEnabled[2], _holdProtectMicros[2]);
+  setChannel(3, state);
+  // setChannel(CH3_PIN, state, _hardwareShutoffEnabled[2], _holdProtectMicros[2]);
 }
 
 // set Channel 4 to a state HIGH or LOW
 void MicroPanelH::setCh4(int state) {
-  setChannel(CH4_PIN, state, _hardwareShutoffEnabled[3], _holdProtectMicros[3]);
+  setChannel(4, state);
+  // setChannel(CH4_PIN, state, _hardwareShutoffEnabled[3], _holdProtectMicros[3]);
+}
+
+// set channel function where you specify a channel number 1, 2, 3, 4
+void MicroPanelH::setChannel(int chNumber, int state) {
+  switch(chNumber) {
+  case 1:
+    setChannel(CH1_PIN, state, _hardwareShutoffEnabled[0], _holdProtectMicros[0]);
+    break;
+  case 2:
+    setChannel(CH2_PIN, state, _hardwareShutoffEnabled[1], _holdProtectMicros[1]);
+    break;
+  case 3:
+    setChannel(CH3_PIN, state, _hardwareShutoffEnabled[2], _holdProtectMicros[2]);
+    break;
+  case 4:
+    setChannel(CH4_PIN, state, _hardwareShutoffEnabled[3], _holdProtectMicros[3]);
+    break;
+  default:
+    break;
+  }
 }
 
 // generic set channel function
