@@ -1,0 +1,12 @@
+[Unit]
+Description=My Python 3 Service
+After=multi-user.target
+
+[Service]
+User=pi  # Or the user under which the script should run
+WorkingDirectory=/home/pi/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard # Path to your script's directory
+ExecStart=/usr/bin/python3 python3 /home/pi/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/SmartPanelDashboard.py & # Full path to your Python 3 script
+Restart=always # Optional: restart the service if it fails
+
+[Install]
+WantedBy=multi-user.target

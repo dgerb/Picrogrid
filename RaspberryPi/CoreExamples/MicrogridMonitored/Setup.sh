@@ -38,11 +38,14 @@ sleep 2
 
 # SolarConverter: jumper 26
 sudo avrdude -c linuxgpio26 -p atmega328p -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/AtverterHExamples/CoreExamples/SolarConverter/build/arduino.avr.uno/SolarConverter.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO ip
 sleep 2
 # BatteryConverter: jumper 19
 sudo avrdude -c linuxgpio19 -p atmega328p -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/AtverterHExamples/CoreExamples/BatteryConverter/build/arduino.avr.uno/BatteryConverter.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO ip
 sleep 2
 # PowerSupply: jumper 13
 sudo avrdude -c linuxgpio13 -p atmega328p -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/AtverterHExamples/CoreExamples/PowerSupply/build/arduino.avr.uno/PowerSupply.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO ip
 sleep 2
 

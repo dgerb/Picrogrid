@@ -22,4 +22,5 @@ sleep 2
 
 # MicroPanel: jumper 24
 sudo avrdude -c linuxgpio24 -p atmega328p -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO ip
 sleep 2

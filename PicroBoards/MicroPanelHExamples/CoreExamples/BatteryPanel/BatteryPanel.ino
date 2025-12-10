@@ -40,25 +40,21 @@ MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
-// we recommend setting VBATTMIN > VBATMINABS + RINTERNAL * IBATDISMAX
 const int SOCMIN = 10; // Absolute minimum SOC after which all channels get turned off
-// const unsigned int VBATMIN = 12500*2; // min battery voltage in mV when drawing 0A
-const unsigned int VBATMINABS = 11000*2; // absolute min battery voltage in mV regardless of current
+const unsigned int VBATMINABS = 10500*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
-// const unsigned int VACTIVATE = VBATMIN + 500*2; // if undervoltage cutoff, needs this voltage to reactivate
 
 // battery curve lookup table
 const int LUTN = 9;
-// const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
-const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
+const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
+// const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
 const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
 // Battery Converter global variables
 int iBatExtIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 int iBatExtOut = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 int soc; // global variable to track the SOC, calculated by battery voltage
-// unsigned int vBatMin = 0; // min battery voltage at 0A
 unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
 // unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
 unsigned int battVArr[LUTN];
@@ -96,7 +92,6 @@ void setup() {
   micropanel.startI2C(8, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
   // set battery raw parameters (raw 0-1023)
-  // vBatMin = micropanel.mV2raw(VBATMIN);
   vBatMinAbs = micropanel.mV2raw(VBATMINABS);
   // vActivate = micropanel.mV2raw(VACTIVATE);
   micropanel.setRDroop(RINTERNAL);
@@ -145,11 +140,10 @@ void controlUpdate(void)
   // BMS code: turn off loads if battery SOC is too low
   int vBat0A = vBat + micropanel.getVDroopRaw(iBat); // adjusted battery voltage, accounting for voltage droop due to iBat
   soc = interpolate(battVArr, BATTSOC, LUTN, vBat0A);
-  if (vBat < vBatMinAbs || soc < SOCMIN) { // battery voltage or SOC goes below absolute min threshold
-    if (micropanel.isSomeChannelsActive())
-      micropanel.shutdownChannels();
-  }
-  // OLD: if (vBat < vBatMinAbs || vBat < vBatMin - micropanel.getVDroopRaw(iBat)) { // battery voltage goes below min
+  // if (vBat < vBatMinAbs || soc < SOCMIN) { // battery voltage or SOC goes below absolute min threshold
+  //   if (micropanel.isSomeChannelsActive())
+  //     micropanel.shutdownChannels();
+  // }
 
   slowInterruptCounter++; // in this example, do some special stuff every 1 second (1000ms)
   if (slowInterruptCounter > 1000) {

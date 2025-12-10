@@ -1,3 +1,5 @@
+# python3 Picrogrid/RaspberryPi/BasicExamples/Pi_I2C_Shell.py
+
 #!/usr/bin/env python
 from time import sleep
 import smbus2

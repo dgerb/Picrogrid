@@ -7,7 +7,7 @@ These instructions will let you set up a Raspberry Pi to flash Atmega328P microc
 Download the Raspberry Pi Imager:
 https://www.raspberrypi.com/software/
 
-Insert your micro SD card. In the imager, select the appropriate type of Raspberry Pi, the recommended Raspbian OS, and the SD card's drive image.
+Insert your micro SD card. In the imager, select the appropriate type of Raspberry Pi, the recommended Raspbian OS, and the SD card's drive image. The examples have been tested with Raspbian Bookworm, which we recommend.
 
 You will want to edit customization settings. Enter the desired hostname, username, and password. Typical defaults are raspberrypi, pi, raspberry. Enter the WiFi network name and password. Select the box for Show Password. On the next tab, select to enable SSH.
 

@@ -28,9 +28,11 @@ sleep 2
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
 GPIO=24
 sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO pu
 sleep 2
 GPIO=25
 sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/PiSupplyHExamples/CTMeasure/build/arduino.avr.uno/CTMeasure.ino.with_bootloader.hex:i
+raspi-gpio set $GPIO pu
 sleep 2
 
 # # OLD: Set the Atmega328P Fuses
@@ -87,6 +89,8 @@ sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
 # Enable and start the Grafana server
 sudo /bin/systemctl enable grafana-server
 sudo /bin/systemctl start grafana-server
+# Set time zone to raspberry pi local time zone
+sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
 # Reset admin password
 #   https://community.grafana.com/t/admin-password-reset/19455/22
 sleep 10 # must wait a bit after start

@@ -22,6 +22,8 @@
 # <ctrl+b and d (to exit tmux)>
 # tmux kill-session -t <session-name>
 
+# for debugging: python3 Picrogrid/RaspberryPi/BasicExamples/Pi_I2C_Shell.py
+
 from time import sleep
 import sys
 from datetime import datetime
@@ -201,25 +203,11 @@ def check_for_button():
 def checkSOCShutoff():
     success = False
     while not success:
-        if anyChannelActive and soc < 23: # turn off all channels
+        if anyChannelActive and soc < 25: # turn off all channels
+            [outString, success] = sendI2CCommand(panelAddress, "WCPA:0\n")
             sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP1:0\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP2:0\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP3:0\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCP4:0\n")
-            sleep(0.2)
-        elif not anyChannelActive and soc > 30: # turn on all channels
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCH1:1\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCH4:1\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCH3:1\n")
-            sleep(0.2)
-            [outString, success] = sendI2CCommand(panelAddress, "WCH2:1\n")
+        elif not anyChannelActive and soc > 32: # turn on all channels
+            [outString, success] = sendI2CCommand(panelAddress, "WCPA:1\n")
             sleep(0.2)
         else:
             break
