@@ -5,7 +5,11 @@
 # 2. Place one Reset jumper on the MicroPanel at Reset select 24
 # 3. Stack the MicroPanel on a Raspberry Pi using a 40-pin header extension (e.g. PRT-16764) and M2.5 18mm Standoffs
 # 4. Run the ~/Picrogrid/RaspberryPi/Setup/SetupRaspberryPi.sh script if necessary
-# 5. Run this script on the Raspberry Pi
+# 5. Run this script on the Raspberry Pi: ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/Setup.sh
+
+# input root password first
+read -s -p "Enter MySQL root password: " ROOTPWD
+echo
 
 # Enable I2C
 sudo raspi-config nonint do_i2c 0
@@ -63,13 +67,13 @@ pip3 install mysql-connector-python --break-system-packages
 pip3 install smbus2 --break-system-packages
 # Create a new database with the proper settings
 echo "setting time zone"
-sudo mysql -u root -p -e "SET GLOBAL time_zone = '+00:00';"
+sudo mysql -u root -p"${ROOTPWD}" -e "SET GLOBAL time_zone = '+00:00';"
 echo "cleaning existing database $DB_NAME"
-sudo mysql -u root -p -e "DROP DATABASE IF EXISTS $DB_NAME;"
+sudo mysql -u root -p"${ROOTPWD}" -e "DROP DATABASE IF EXISTS $DB_NAME;"
 echo "creating new database $DB_NAME"
-sudo mysql -u root -p -e "CREATE DATABASE $DB_NAME;"
+sudo mysql -u root -p"${ROOTPWD}" -e "CREATE DATABASE $DB_NAME;"
 echo "configuring $DB_NAME from setup file"
-sudo mysql -u root -p $DB_NAME < $DIR/SetupFiles/DBSetup.sql
+sudo mysql -u root -p"${ROOTPWD}" $DB_NAME < $DIR/SetupFiles/DBSetup.sql
 
 # Install Grafana on Pi
 # Tested with grafana version 12.2.1
@@ -86,18 +90,56 @@ sudo apt install -y jq=1.6-2.1+deb12u1
 sudo grafana-cli plugins install speakyourcode-button-panel
 # Set Grafana such that other local machines can access the server hosted on port 3000
 sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
+
 # Enable and start the Grafana server
 sudo /bin/systemctl enable grafana-server
 sudo /bin/systemctl start grafana-server
+
 # Set time zone to raspberry pi local time zone
-sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
+# sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
+
+
+
+
+
+
 # Reset admin password
 #   https://community.grafana.com/t/admin-password-reset/19455/22
-sleep 10 # must wait a bit after start
+sleep 60 # must wait a long time after starting the server before can change admin password
 sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
 sudo /bin/systemctl restart grafana-server
 
+
+
+
+
+
+# # Set Grafana such that other local machines can access the server hosted on port 3000
+# sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
+# # Enable and start the Grafana server
+# sudo /bin/systemctl enable grafana-server
+# sudo /bin/systemctl start grafana-server
+# # Set time zone to raspberry pi local time zone
+# sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
+# # Reset admin password
+# #   https://community.grafana.com/t/admin-password-reset/19455/22
+# sleep 10 # must wait a bit after start
+# sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
+# sudo /bin/systemctl restart grafana-server
+
+
+
+
+
+
+
+
+
+
+
+
 # Add the MariaDB database as a data source for Grafana
+echo "adding database as a data source for Grafana..."
 sleep 10 # must wait a bit after restart before can send http requests
 curl -X POST \
   http://localhost:3000/api/datasources \
@@ -129,6 +171,7 @@ curl -X POST \
 #   },“folderId”: 0,“overwrite”: true}
 #   Also set the first "id" field to Null or it complains dashboard not found
 #   https://community.grafana.com/t/import-dashboard-from-file-via-api/22266/3
+echo "importing dashboard info..."
 sleep 3 # must wait a bit after between curl requests
 curl -X POST \
   -H "Content-Type: application/json" \
@@ -137,7 +180,8 @@ curl -X POST \
   http://localhost:3000/api/dashboards/db
 
 # Make it so that anonymous views can view the dashboard
-sleep 3 # must wait a bit after between curl requests
+echo "granting anonymous viewer access..."
+sleep 3
 sudo bash -c '
 sed -i "/^\[auth.anonymous\]/,/^\[/{ 
     s/^[;#]*\s*enabled\s*=.*/enabled = true/;
@@ -152,3 +196,11 @@ sudo systemctl restart grafana-server
 # For example:
 # http://nanogridpi.local:3000/d/display?kiosk
 
+# Set up python as a service to auto start on boot
+echo "setting up python as a service on boot..."
+sleep 3
+sudo cp ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/SetupFiles/startpython.service /etc/systemd/system/startpython.service
+sudo systemctl daemon-reload # Inform systemd about the new service file
+sudo systemctl enable startpython.service # Enable the service to start automatically on boot
+# after reboot, debug with ps and: systemctl status startpython.service
+# to start now: sudo systemctl start startpython.service

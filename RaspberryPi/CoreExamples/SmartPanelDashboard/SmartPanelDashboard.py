@@ -33,6 +33,7 @@ import os
 import RPi.GPIO as GPIO
 import mysql.connector
 import random
+import statistics
 
 panelAddress = 0x08
 boardAddresses = [0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x05, 0x05]
@@ -42,9 +43,13 @@ rewriteAddresses = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0x08,0x08] # write above read 
 rewriteCommands = ["","","","","","","","","","","WIEI","WIEO"] # command to rewrite above read result. skip if ""
 CH1IND = 6
 writeCommands = ["WCP1","WCP2","WCP3","WCP4"]
-soc = 0 # battery state of charge global variable
 anyChannelActive = 0 # global variable describing if any of the channels are active (1) or none (0)
 imppt = 0 # global variable for MPPT current into battery
+criticalMode = 0 # critical mode state machine: 0 = non critical, 1 = critical
+
+socMedian = 0 # battery state of charge global variable
+SOC_WINDOW_SIZE = 5
+socWindow = []   # oldest at index 0, newest appended
 
 def StringToBytes(val):
     retVal = []
@@ -132,15 +137,26 @@ def connect_to_db():
         database="paneldb"
     )
 
-# Insert a new row with timestamp and vb,soc,i1,i2,i3,i4,ch1,ch2,ch3,ch4,ia1,ia7
+# Add value to array and return new median
+def newMedian(newElement):
+    global socWindow
+    # Add new element
+    socWindow.append(newElement)
+    # Remove oldest if window too large
+    if len(socWindow) > SOC_WINDOW_SIZE:
+        socWindow.pop(0)
+    # Return median of current window
+    return statistics.median(socWindow)
+
+# Insert a new row with timestamp and vb,socMedian,i1,i2,i3,i4,ch1,ch2,ch3,ch4,ia1,ia7
 def insert_data():
-    global soc
+    global socMedian
     global anyChannelActive
     db_connection = connect_to_db()
     cursor = db_connection.cursor()
 
     vb = int(readVals[0])/1000.0
-    soc = int(readVals[1])
+    socMedian = newMedian(int(readVals[1]))
     i1 = int(readVals[2])/1000.0
     i2 = int(readVals[3])/1000.0
     i3 = int(readVals[4])/1000.0
@@ -157,20 +173,20 @@ def insert_data():
     pload = -1*vb*(i1+i2+i3+i4+ia7)
     pbattery = psolar + pload
 
-    newVals = ["{:.2f}".format(vb), str(soc), "{:.2f}".format(i1), "{:.2f}".format(i2),
+    newVals = ["{:.2f}".format(vb), str(socMedian), "{:.2f}".format(i1), "{:.2f}".format(i2),
         "{:.2f}".format(i3), "{:.2f}".format(i4), 
         str(ch1), str(ch2), str(ch3), str(ch4), # RCH1-4
         "{:.2f}".format(ia1), "{:.2f}".format(ia7), # RIA1, RIA7
         "{:.2f}".format(psolar), "{:.2f}".format(pbattery), "{:.2f}".format(pload)] # Psolar, Pbattery, Pload
     # Insert the data into the table
     cursor.execute("""
-        INSERT INTO channelRead (vb, soc, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7, psol, pbatt, pload)
+        INSERT INTO channelRead (vb, socMedian, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7, psol, pbatt, pload)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (newVals[0], newVals[1], newVals[2], newVals[3], newVals[4], \
         newVals[5], newVals[6], newVals[7], newVals[8], newVals[9], \
         newVals[10], newVals[11], newVals[12], newVals[13], newVals[14]))
     db_connection.commit()
-    print(f"{datetime.now()}, vb:{newVals[0]},soc:{newVals[1]},i1:{newVals[2]},i2:{newVals[3]},i3:{newVals[4]}"+\
+    print(f"{datetime.now()}, vb:{newVals[0]},socMedian:{newVals[1]},i1:{newVals[2]},i2:{newVals[3]},i3:{newVals[4]}"+\
         f",i4:{newVals[5]},ch1:{newVals[6]},ch2:{newVals[7]},ch3:{newVals[8]},ch4:{newVals[9]}"+\
         f",ia1:{newVals[10]},ia7:{newVals[11]},psol:{newVals[12]},pbatt:{newVals[13]},pload:{newVals[14]}")
 
@@ -203,10 +219,10 @@ def check_for_button():
 def checkSOCShutoff():
     success = False
     while not success:
-        if anyChannelActive and soc < 25: # turn off all channels
+        if criticalMode == 1 and socMedian < 25: # turn off all channels
             [outString, success] = sendI2CCommand(panelAddress, "WCPA:0\n")
             sleep(0.2)
-        elif not anyChannelActive and soc > 32: # turn on all channels
+        elif criticalMode == 0 and socMedian > 32: # turn on all channels
             [outString, success] = sendI2CCommand(panelAddress, "WCPA:1\n")
             sleep(0.2)
         else:

@@ -8,8 +8,7 @@
 # git clone https://github.com/dgerb/Picrogrid.git
 
 # To run this script, use the following:
-# cd ~/Picrogrid/RaspberryPi/Setup/
-# ./SetupRaspberryPi.sh
+# ~/Picrogrid/RaspberryPi/Setup/SetupRaspberryPi.sh
 
 # Prepare the Pi for Picrogrid
 # sudo timedatectl set-timezone America/Los_Angeles
