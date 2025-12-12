@@ -156,7 +156,10 @@ def insert_data():
     cursor = db_connection.cursor()
 
     vb = int(readVals[0])/1000.0
+    println("before")
+
     socMedian = newMedian(int(readVals[1]))
+    println("after")
     i1 = int(readVals[2])/1000.0
     i2 = int(readVals[3])/1000.0
     i3 = int(readVals[4])/1000.0
@@ -173,14 +176,14 @@ def insert_data():
     pload = -1*vb*(i1+i2+i3+i4+ia7)
     pbattery = psolar + pload
 
-    newVals = ["{:.2f}".format(vb), str(soc), "{:.2f}".format(i1), "{:.2f}".format(i2),
+    newVals = ["{:.2f}".format(vb), str(socMedian), "{:.2f}".format(i1), "{:.2f}".format(i2),
         "{:.2f}".format(i3), "{:.2f}".format(i4), 
         str(ch1), str(ch2), str(ch3), str(ch4), # RCH1-4
         "{:.2f}".format(ia1), "{:.2f}".format(ia7), # RIA1, RIA7
         "{:.2f}".format(psolar), "{:.2f}".format(pbattery), "{:.2f}".format(pload)] # Psolar, Pbattery, Pload
     # Insert the data into the table
     cursor.execute("""
-        INSERT INTO channelRead (vb, socMedian, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7, psol, pbatt, pload)
+        INSERT INTO channelRead (vb, soc, i1, i2, i3, i4, ch1, ch2, ch3, ch4, ia1, ia7, psol, pbatt, pload)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (newVals[0], newVals[1], newVals[2], newVals[3], newVals[4], \
         newVals[5], newVals[6], newVals[7], newVals[8], newVals[9], \
@@ -237,13 +240,16 @@ if __name__ == "__main__":
     bus = smbus2.SMBus(1)
     sleep(2) # Give the I2C device time to settle
     while True:
+        println("read")
         # Read data from the PicroBoard
         readPicroBoard()
         sleep(0.5) # Give a nice and long delay to make sure things got read and recorded properly
+        println("button")
 
         # Check if button pressed in Grafana dashboard, send write channel command if so
         if check_for_button():
             sleep(0.5) # Give a nice and long delay to make sure things got written properly
+        println("insert")
 
         # Store data in DB for Grafana to read
         insert_data()

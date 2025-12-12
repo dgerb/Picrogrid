@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Physical setup:
+# Setup:
 # 1. Get a MicroPanelH boards. Connect loads to the outputs and a battery to the input
 # 2. Place one Reset jumper on the MicroPanel at Reset select 24
 # 3. Stack the MicroPanel on a Raspberry Pi using a 40-pin header extension (e.g. PRT-16764) and M2.5 18mm Standoffs
