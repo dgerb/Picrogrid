@@ -37,8 +37,8 @@ echo "   New SSH command: ssh pi@192.168.25.1"
 # Must deactivate the current wlan0 network in order to start up the new one
 sudo nmcli connection down preconfigured
 
-# Enable hostname advertising (required for clients to see the name)
-sudo nmcli connection modify PicrogridHotspot ipv4.dns-options "host-name"
+# # Optional? Enable hostname advertising (required for clients to see the name)
+# sudo nmcli connection modify PicrogridHotspot ipv4.dns-options "host-name"
 
 # Activate the new hotspot network to wlan0
 sudo nmcli con up PicrogridHotspot ifname wlan0
@@ -46,5 +46,7 @@ sudo nmcli con up PicrogridHotspot ifname wlan0
 # Reboot to restart NetworkManager properly
 sudo reboot
 
+# Notes:
+# If using a Grafana web app, you can access with either 192.168.25.1:3000, OR hostname.local:3000
 # Restore original preconfigured WiFi network with
     # sudo nmcli con up preconfigured ifname wlan0

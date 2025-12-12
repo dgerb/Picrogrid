@@ -156,10 +156,7 @@ def insert_data():
     cursor = db_connection.cursor()
 
     vb = int(readVals[0])/1000.0
-    println("before")
-
     socMedian = newMedian(int(readVals[1]))
-    println("after")
     i1 = int(readVals[2])/1000.0
     i2 = int(readVals[3])/1000.0
     i3 = int(readVals[4])/1000.0
@@ -240,16 +237,13 @@ if __name__ == "__main__":
     bus = smbus2.SMBus(1)
     sleep(2) # Give the I2C device time to settle
     while True:
-        println("read")
         # Read data from the PicroBoard
         readPicroBoard()
         sleep(0.5) # Give a nice and long delay to make sure things got read and recorded properly
-        println("button")
 
         # Check if button pressed in Grafana dashboard, send write channel command if so
         if check_for_button():
             sleep(0.5) # Give a nice and long delay to make sure things got written properly
-        println("insert")
 
         # Store data in DB for Grafana to read
         insert_data()
