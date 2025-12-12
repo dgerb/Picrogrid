@@ -5,11 +5,15 @@
 # 2. Place one Reset jumper on the MicroPanel at Reset select 24
 # 3. Stack the MicroPanel on a Raspberry Pi using a 40-pin header extension (e.g. PRT-16764) and M2.5 18mm Standoffs
 # 4. Run the ~/Picrogrid/RaspberryPi/Setup/SetupRaspberryPi.sh script if necessary
-# 5. Run this script on the Raspberry Pi: ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/Setup.sh
+# 5. Run this script on the Raspberry Pi:
+# ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/Setup.sh
 
 # input root password first
 read -s -p "Enter MySQL root password: " ROOTPWD
 echo
+
+# For this example, we use UTC time zone, and allow Grafana to convert to the browser's time zone
+sudo timedatectl set-timezone UTC
 
 # Enable I2C
 sudo raspi-config nonint do_i2c 0
@@ -90,53 +94,17 @@ sudo apt install -y jq=1.6-2.1+deb12u1
 sudo grafana-cli plugins install speakyourcode-button-panel
 # Set Grafana such that other local machines can access the server hosted on port 3000
 sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
-
+# Ensure time zone is Browser
+sudo sed -i 's/^[#;]*\s*default_timezone = .*/default_timezone = Browser/' /etc/grafana/grafana.ini
 # Enable and start the Grafana server
 sudo /bin/systemctl enable grafana-server
 sudo /bin/systemctl start grafana-server
 
-# Set time zone to raspberry pi local time zone
-# sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
-
-
-
-
-
-
 # Reset admin password
 #   https://community.grafana.com/t/admin-password-reset/19455/22
-sleep 60 # must wait a long time after starting the server before can change admin password
+sleep 60 # must wait a super long time after starting the server before can change admin password
 sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
 sudo /bin/systemctl restart grafana-server
-
-
-
-
-
-
-# # Set Grafana such that other local machines can access the server hosted on port 3000
-# sudo sed -i 's/http_addr =.*/http_addr = 0.0.0.0/' /etc/grafana/grafana.ini
-# # Enable and start the Grafana server
-# sudo /bin/systemctl enable grafana-server
-# sudo /bin/systemctl start grafana-server
-# # Set time zone to raspberry pi local time zone
-# sudo sed -i 's/^;*default_timezone.*/default_timezone = local/' /etc/grafana/grafana.ini && sudo systemctl restart grafana-server
-# # Reset admin password
-# #   https://community.grafana.com/t/admin-password-reset/19455/22
-# sleep 10 # must wait a bit after start
-# sudo grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GRAFANA_ADMIN_PW
-# sudo /bin/systemctl restart grafana-server
-
-
-
-
-
-
-
-
-
-
-
 
 # Add the MariaDB database as a data source for Grafana
 echo "adding database as a data source for Grafana..."
