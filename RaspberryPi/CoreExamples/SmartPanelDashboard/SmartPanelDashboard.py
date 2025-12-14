@@ -215,15 +215,22 @@ def check_for_button():
     return (len(rows) > 0)
 
 # Check SOC, and turn off channels if SOC < 25%
-#   or if channels are off and SOC > 30%, turn them all on
+#   or if channels are off and SOC > 35%, turn them all on
+#   critical mode state machine: 0 = non critical, 1 = critical
 def checkSOCShutoff():
+    global criticalMode
+    global anyChannelActive
     success = False
     while not success:
-        if criticalMode == 1 and socMedian < 25: # turn off all channels
+        if socMedian < 25 and (criticalMode == 0 or anyChannelActive): # turn off all channels
             [outString, success] = sendI2CCommand(panelAddress, "WCPA:0\n")
+            if success:
+                criticalMode = 1
             sleep(0.2)
-        elif criticalMode == 0 and socMedian > 32: # turn on all channels
+        elif socMedian > 35 and criticalMode == 1: # turn on all channels
             [outString, success] = sendI2CCommand(panelAddress, "WCPA:1\n")
+            if success:
+                criticalMode = 0
             sleep(0.2)
         else:
             break

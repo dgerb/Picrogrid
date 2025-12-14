@@ -9,7 +9,7 @@
 # ~/Picrogrid/RaspberryPi/CoreExamples/SmartPanelDashboard/Setup.sh
 
 # input root password first
-read -s -p "Enter MySQL root password: " ROOTPWD
+read -s -p "Enter root password: " ROOTPWD
 echo
 
 # For this example, we use UTC time zone, and allow Grafana to convert to the browser's time zone

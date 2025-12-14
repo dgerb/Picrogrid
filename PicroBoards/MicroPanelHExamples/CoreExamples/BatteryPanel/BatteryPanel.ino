@@ -40,7 +40,7 @@ MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
 // specify the follwoing absolute max battery values from battery datasheet
-const int SOCMIN = 10; // Absolute minimum SOC after which all channels get turned off
+const int SOCMIN = 5; // Absolute minimum SOC after which all channels get turned off
 const unsigned int VBATMINABS = 10500*4; // absolute min battery voltage in mV regardless of current
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
