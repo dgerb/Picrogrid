@@ -43,14 +43,14 @@ long slowInterruptCounter = 0;
 const int SOCMIN = 5; // Absolute minimum SOC after which all channels get automatically turned off
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
-const long BATTMASEC = 50*1000*3600; // battery milliamp-second rating (= amp-hours * 1000 * 3600)
+const long BATTMASEC = 50*1000L*3600; // battery milliamp-second rating (= amp-hours * 1000 * 3600)
 const int SOCLOW = 10; // below this SOC coulomb counter is updated every second based on adjusted battery voltage
 const int SOCHIGH = 90; // above this SOC, columb counter is updated every second based on adjusted battery voltage
 
 // bati8tery curve lookup table
 const int LUTN = 9;
-const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
-// const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
+// const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
+const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
 const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
 
@@ -250,7 +250,7 @@ int interpolate(int x[], int y[], int n, int x_query)
 // convert SOC to an equivalent mA-sec value for coulomb counter
 long soc2mAsec(int socInput)
 {
-  return BATTMASEC*socInput/100L;
+  return BATTMASEC*1L*socInput/100;
 }
 
 // convert an mA-sec value from coulomb counter to the equivalent SOC
