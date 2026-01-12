@@ -49,8 +49,8 @@ const int SOCHIGH = 90; // above this SOC, columb counter is updated every secon
 
 // bati8tery curve lookup table
 const int LUTN = 9;
-// const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
-const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
+const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
+// const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
 const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
 
