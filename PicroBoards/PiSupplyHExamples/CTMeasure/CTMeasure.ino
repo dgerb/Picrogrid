@@ -100,3 +100,18 @@ void readFileName(const char* valueStr, int receiveProtocol) {
 
 
 
+
+
+// "RV48" // read 48V input bus voltage
+// "RV12" // read 12V bus voltage
+// "RVCC" // read the ~5V VCC bus voltage
+// "RCPI" // read state of the Pi power channel
+// "RC5V" // read state of the 5V output power channel
+// "RCGP" // read state of the GPIO power channel
+// "RC12V" // read state of the 12V output power channel
+// "WCPI" // write the desired Pi power channel state
+// "WC5V" // write the desired 5V output power channel state
+// "WCGP" // write the desired GPIO power channel state
+// "WC12V" // write the desired 12V output power channel state
+
+

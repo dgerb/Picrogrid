@@ -14,8 +14,8 @@
 # sudo timedatectl set-timezone America/Los_Angeles
 sudo apt install -y python3-pip
 
-# Install raspi-gpio, needed to set reset pins to input after flashing via avrdude
-sudo apt install -y raspi-gpio
+# # Install raspi-gpio, needed to set reset pins to input after flashing via avrdude
+# sudo apt install -y raspi-gpio
 
 # Enable SPI, I2C
 sudo raspi-config nonint do_spi 0 # command to enable SPI; for flashing the Atverter

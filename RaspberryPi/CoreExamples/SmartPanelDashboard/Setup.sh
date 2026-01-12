@@ -36,11 +36,11 @@ sleep 2
 # note that avrdude cannot process “~”, need absolute directory, e.g. /home/pi/...
 GPIO=24
 sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/MicroPanelHExamples/CoreExamples/BatteryPanel/build/arduino.avr.uno/BatteryPanel.ino.with_bootloader.hex:i
-raspi-gpio set $GPIO pu
+# pinctrl -e set $GPIO pu
 sleep 2
 GPIO=25
 sudo avrdude -c linuxspi -p atmega328p -P /dev/spidev0.0:/dev/gpiochip0:$GPIO -v -E noreset -U flash:w:/home/$USER/Picrogrid/PicroBoards/PiSupplyHExamples/CTMeasure/build/arduino.avr.uno/CTMeasure.ino.with_bootloader.hex:i
-raspi-gpio set $GPIO pu
+# pinctrl -e set $GPIO pu
 sleep 2
 
 # # OLD: Set the Atmega328P Fuses
