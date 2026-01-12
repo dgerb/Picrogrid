@@ -264,7 +264,7 @@ void interpretRXCommand(char* command, char* value, int receiveProtocol) {
     sprintf(micropanel.getTXBuffer(receiveProtocol), "WSOC:%d", soc);
     micropanel.respondToMaster(receiveProtocol);
   } else if (strcmp(command, "RCNT") == 0) { // read coulomb counter mA-s
-    sprintf(micropanel.getTXBuffer(receiveProtocol), "WCNT:%d", coulombCounter);
+    sprintf(micropanel.getTXBuffer(receiveProtocol), "WCNT:%ld", coulombCounter);
     micropanel.respondToMaster(receiveProtocol);  
   } else if (strcmp(command, "WIEI") == 0) { // record information from the Pi on battery external input current
     writeBattInputCurrent(value, receiveProtocol);
