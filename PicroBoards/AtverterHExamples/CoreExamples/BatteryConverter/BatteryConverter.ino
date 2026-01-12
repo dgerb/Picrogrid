@@ -430,7 +430,7 @@ void controlUpdate(void)
     atverter.updateTSensors(); // occasionally read thermistors and update temperature moving average
     atverter.checkThermalShutdown(); // checks average temperature and shut down gates if necessary
     
-    // average the sub-second raw coulomb count accumulator, and convert it to a mA-hour value to accumulate
+    // average the sub-second raw coulomb count accumulator, and convert it to a mA-sec value to accumulate
     coulombCounter += atverter.raw2mA(ccntAccumulator/1000);
     ccntAccumulator = 0;
 

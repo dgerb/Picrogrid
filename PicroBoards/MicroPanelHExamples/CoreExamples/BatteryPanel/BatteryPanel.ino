@@ -39,29 +39,44 @@
 MicroPanelH micropanel;
 long slowInterruptCounter = 0;
 
-// specify the follwoing absolute max battery values from battery datasheet
-const int SOCMIN = 5; // Absolute minimum SOC after which all channels get turned off
-const unsigned int VBATMINABS = 10500*4; // absolute min battery voltage in mV regardless of current
+// specify the following absolute max battery values from battery datasheet
+const int SOCMIN = 5; // Absolute minimum SOC after which all channels get automatically turned off
 const int IBATDISMAX = 15000; // max battery discharging current in mA
 const unsigned int RINTERNAL = 110; // estimated internal resistance plus cable to Micropanel (mohms)
+const long BATTMASEC = 50*1000*3600; // battery milliamp-second rating (= amp-hours * 1000 * 3600)
+const int SOCLOW = 10; // below this SOC coulomb counter is updated every second based on adjusted battery voltage
+const int SOCHIGH = 90; // above this SOC, columb counter is updated every second based on adjusted battery voltage
 
-// battery curve lookup table
+// bati8tery curve lookup table
 const int LUTN = 9;
 const unsigned int BATTV[LUTN] = {43439, 46006, 48225, 49663, 50820, 52756, 52814, 53174, 53953};
 // const unsigned int BATTV[LUTN] = {21720, 23003, 24112, 24832, 25410, 26378, 26407, 26587, 26977};
 const int BATTSOC[LUTN] = {0, 1, 3, 5, 8, 51, 86, 95, 100};
 
+
+
+
+// test data
+// const long BATTMASEC = 1*1000L*3600; // battery milliamp-second rating (= amp-hours * 1000 * 3600)
+// const unsigned int BATTV[LUTN] = {15000, 16000, 17000, 18000, 19000, 20000, 21000, 22000, 23000};
+// const int BATTSOC[LUTN] = {0, 13, 25, 37, 50, 63, 75, 87, 100};
+// const int SOCLOW = 25; // below this SOC coulomb counter is updated every second based on adjusted battery voltage
+// const int SOCHIGH = 75; // above this SOC, columb counter is updated every second based on adjusted battery voltage
+
+
+
+
+
+
 // Battery Converter global variables
 int iBatExtIn = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 int iBatExtOut = 0; // raw battery input current (-512 to 512), which must be measured externally or ignored
 int soc; // global variable to track the SOC, calculated by battery voltage
-unsigned int vBatMinAbs = 0; // absolute min battery voltage any current
-// unsigned int vActivate = 0; // if undervoltage cutoff, needs this voltage to reactivate
-unsigned int battVArr[LUTN];
+unsigned int battVArr[LUTN]; // raw version of battery voltage to SOC array
 
-// // global variables for coulomb counting (relevant for SOC calculations)
-// long coulombCounter = 0; // coulomb counter (mA-sec)
-// long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
+// global variables for coulomb counting (relevant for SOC calculations)
+long ccntAccumulator = 0; // sub-second column counter accumulator for averaging (raw 0-1023)
+long coulombCounter = 0L; // coulomb counter (mA-sec), (1 A-h = 3,600,000 mA-sec)
 
 // cumulative moving average for channel 4 software shutoff
 const int ICH4LIMIT = 5000; // channel 4 moving average current limit (mA)
@@ -92,8 +107,6 @@ void setup() {
   micropanel.startI2C(8, receiveEvent, requestEvent); // first argument is the slave device address (max 127)
 
   // set battery raw parameters (raw 0-1023)
-  vBatMinAbs = micropanel.mV2raw(VBATMINABS);
-  // vActivate = micropanel.mV2raw(VACTIVATE);
   micropanel.setRDroop(RINTERNAL);
   for (int n = 0; n < LUTN; n++)
     battVArr[n] = micropanel.mV2raw(BATTV[n]);
@@ -109,6 +122,10 @@ void setup() {
 
   // initialize interrupt timer for periodic calls to control update funciton
   micropanel.initializeInterruptTimer(1000, &controlUpdate); // control update every 1ms (= 1000 microseconds)
+
+  // initialize coulomb counter based on battery voltage and current measured by micropanel only
+  int vBat0A = micropanel.getRawVBus() + micropanel.getVDroopRaw(micropanel.getRawITotal());
+  coulombCounter = soc2mAsec(interpolate(battVArr, BATTSOC, LUTN, vBat0A));
 }
 
 void loop() {
@@ -131,24 +148,39 @@ void controlUpdate(void)
       - this will reduce accuracy of SOC and/or coulumb counting calculations, if that matters to you
       - for BMS, input current causes vBat to be higher, iBat to be lower, and the vBat minimum threshold to be lower
         - this means if discharging, any charging will cause BMS to react at a lower SOC
-        - to be safe, you can set VBATTMINABS = VBATTMIN - RINTERNAL * IBATDISMAX, it's conservative, but you can safely
-          ignore battery input current without ever having to worry about overdischarge
   */
   int iBatOut = micropanel.getRawITotal(); // current out of battery (positive)
   int iBat = iBatOut + iBatExtOut - iBatExtIn; // iBat represents the raw net current out of the battery
-  
+
+  // update the sub-second raw coulomb counter accumulator
+  ccntAccumulator += iBat;
+
   // BMS code: turn off loads if battery SOC is too low
   int vBat0A = vBat + micropanel.getVDroopRaw(iBat); // adjusted battery voltage, accounting for voltage droop due to iBat
-  soc = interpolate(battVArr, BATTSOC, LUTN, vBat0A);
-  // if (vBat < vBatMinAbs || soc < SOCMIN) { // battery voltage or SOC goes below absolute min threshold
-  //   if (micropanel.isSomeChannelsActive())
-  //     micropanel.shutdownChannels();
-  // }
+  int socInterp = interpolate(battVArr, BATTSOC, LUTN, vBat0A); // temporary soc value based only on battery voltage and current
+  if (socInterp < SOCMIN) { // SOC goes below min threshold
+    if (micropanel.isSomeChannelsActive())
+      micropanel.shutdownChannels();
+  }
 
-  slowInterruptCounter++; // in this example, do some special stuff every 1 second (1000ms)
+  // special stuff to do every 1 second (1000ms)
+  slowInterruptCounter++; 
   if (slowInterruptCounter > 1000) {
     slowInterruptCounter = 0;
     micropanel.updateVCC(); // read on-board VCC voltage, update stored average (shouldn't change)
+
+    // SOC final calculation and coulomb counter update
+    if (socInterp < SOCLOW || socInterp > SOCHIGH) { // at high or low battery voltage
+      coulombCounter = soc2mAsec(socInterp); // update coulomb counter based on battery voltage
+      soc = socInterp; // calculate SOC based entirely on battery voltage and current
+    } else { // at mid range battery voltage
+      // average the sub-second raw coulomb count accumulator, and convert it to a mA-second value to accumulate
+      coulombCounter -= micropanel.raw2mA(ccntAccumulator/1000);
+      ccntAccumulator = 0;
+      soc = mAsec2soc(coulombCounter); // use coulomb counter to calculate SOC
+      if (soc < SOCLOW || soc > SOCHIGH) // if the coulomb counter gets too desynchronized from the voltage measurement
+        coulombCounter = soc2mAsec(socInterp); // resynchronize the coulomb counter
+    }
 
     // check ch4 current moving average is less than the channel 4 limit
     int iCh4 = micropanel.getRawI4();
@@ -191,28 +223,40 @@ void controlUpdate(void)
     Serial.print(micropanel.getITotal());
     Serial.print("mA, vbat:");
     Serial.print(vBat);
-    Serial.print(", vdrp:");
-    Serial.println(micropanel.getVDroopRaw(iBat));
+    Serial.print(", ccnt:");
+    Serial.println(coulombCounter);
   }
 }
 
 // interpolation for finding battery SOC based on voltage using lookup table
 int interpolate(int x[], int y[], int n, int x_query)
 {
-    // Handle out-of-range queries by clamping
-    if (x_query <= x[0]) return y[0];
-    if (x_query >= x[n - 1]) return y[n - 1];
-    // Find the interval [x[i], x[i+1]] containing x_query
-    int i = 0;
-    while (i < n - 1 && x_query > x[i + 1])
-      ++i;
-    int x0 = x[i], x1 = x[i + 1];
-    int y0 = y[i], y1 = y[i + 1];
-    // Protect against zero-division if x values are identical
-    if (x1 == x0)
-      return y0;
-    // Linear interpolation formula
-    return y0 + (y1 - y0) * (x_query - x0) / (x1 - x0);
+  // Handle out-of-range queries by clamping
+  if (x_query <= x[0]) return y[0];
+  if (x_query >= x[n - 1]) return y[n - 1];
+  // Find the interval [x[i], x[i+1]] containing x_query
+  int i = 0;
+  while (i < n - 1 && x_query > x[i + 1])
+    ++i;
+  int x0 = x[i], x1 = x[i + 1];
+  int y0 = y[i], y1 = y[i + 1];
+  // Protect against zero-division if x values are identical
+  if (x1 == x0)
+    return y0;
+  // Linear interpolation formula
+  return y0 + (y1 - y0) * (x_query - x0) / (x1 - x0);
+}
+
+// convert SOC to an equivalent mA-sec value for coulomb counter
+long soc2mAsec(int socInput)
+{
+  return BATTMASEC*socInput/100L;
+}
+
+// convert an mA-sec value from coulomb counter to the equivalent SOC
+int mAsec2soc(long mAsecInput)
+{
+  return mAsecInput*100/BATTMASEC;
 }
 
 void interpretRXCommand(char* command, char* value, int receiveProtocol) {
